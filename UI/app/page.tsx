@@ -44,6 +44,10 @@ interface AgentCard {
   agentType: string
   verified?: boolean
   timestamp?: string
+  // Real API fields
+  name?: string
+  agentAID?: string
+  oorRole?: string
 }
 
 interface ChatMessage {
@@ -176,16 +180,47 @@ export default function VerificationFlow() {
     setAgenticStep('fetching-buyer-agent')
     addMessage("🔄 Fetching buyer agent...", 'agent')
 
-    setTimeout(() => {
+    try {
+      console.log('🚀 [BUYER SELF] Fetching from: http://localhost:9090/.well-known/agent-card.json')
+      
+      // Make real API call to the buyer A2A server
+      const response = await fetch('http://localhost:9090/.well-known/agent-card.json')
+      
+      console.log('📥 [BUYER SELF RESPONSE] Status:', response.status, response.statusText)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch agent card: ${response.status}`)
+      }
+
+      const agentCardData = await response.json()
+      
+      console.log('✅ [BUYER SELF DATA] Received:', {
+        name: agentCardData.name,
+        agentAID: agentCardData.extensions?.keriIdentifiers?.agentAID,
+        oorRole: agentCardData.extensions?.gleifIdentity?.officialRole
+      })
+      
+      // Extract the three fields from the API response
       const agentCard: AgentCard = {
-        ...AGENT_CARDS.tommyBuyerAgent,
+        alias: agentCardData.name || "Unknown Agent",
+        engagementContextRole: agentCardData.extensions?.gleifIdentity?.engagementRole || "Unknown Role",
+        agentType: "AI",
         verified: true,
         timestamp: new Date().toLocaleTimeString(),
+        // Real API fields
+        name: agentCardData.name,
+        agentAID: agentCardData.extensions?.keriIdentifiers?.agentAID,
+        oorRole: agentCardData.extensions?.gleifIdentity?.officialRole
       }
+      
       setBuyerAgentData(agentCard)
       setAgenticStep('buyer-agent-fetched')
-      addMessage("✅ Buyer agent fetched successfully! Click to view details.", 'agent')
-    }, 2000)
+      addMessage("✅ Buyer agent fetched successfully from A2A server! Click to view details.", 'agent')
+    } catch (error: any) {
+      console.error('❌ [BUYER SELF ERROR]:', error)
+      addMessage(`❌ Failed to fetch buyer agent: ${error.message}`, 'agent')
+      setAgenticStep('idle')
+    }
   }
 
   // Fetch seller agent
@@ -193,16 +228,47 @@ export default function VerificationFlow() {
     setAgenticStep('fetching-seller-agent')
     addMessage("🔄 Fetching seller agent...", 'agent')
 
-    setTimeout(() => {
+    try {
+      console.log('🚀 [BUYER API CALL] Fetching seller from: http://localhost:8080/.well-known/agent-card.json')
+      
+      // Make real API call to the A2A server
+      const response = await fetch('http://localhost:8080/.well-known/agent-card.json')
+      
+      console.log('📥 [BUYER API RESPONSE] Status:', response.status, response.statusText)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch agent card: ${response.status}`)
+      }
+
+      const agentCardData = await response.json()
+      
+      console.log('✅ [BUYER API DATA] Received seller agent:', {
+        name: agentCardData.name,
+        agentAID: agentCardData.extensions?.keriIdentifiers?.agentAID,
+        oorRole: agentCardData.extensions?.gleifIdentity?.officialRole
+      })
+      
+      // Extract the three fields from the API response
       const agentCard: AgentCard = {
-        ...AGENT_CARDS.jupiterSellerAgent,
+        alias: agentCardData.name || "Unknown Agent",
+        engagementContextRole: agentCardData.extensions?.gleifIdentity?.engagementRole || "Unknown Role",
+        agentType: "AI",
         verified: true,
         timestamp: new Date().toLocaleTimeString(),
+        // Real API fields
+        name: agentCardData.name,
+        agentAID: agentCardData.extensions?.keriIdentifiers?.agentAID,
+        oorRole: agentCardData.extensions?.gleifIdentity?.officialRole
       }
+      
       setSellerAgentFromBuyerData(agentCard)
       setAgenticStep('seller-agent-fetched')
-      addMessage("✅ Seller agent fetched! Click to view details.", 'agent')
-    }, 2000)
+      addMessage("✅ Seller agent fetched from A2A server! Click to view details.", 'agent')
+    } catch (error: any) {
+      console.error('❌ [BUYER API ERROR]:', error)
+      addMessage(`❌ Failed to fetch seller agent: ${error.message}`, 'agent')
+      setAgenticStep('buyer-agent-fetched') // Go back to previous state
+    }
   }
 
   // Verify seller agent (automatic after fetch)
@@ -286,16 +352,47 @@ export default function VerificationFlow() {
     setSellerAgenticStep('fetching-seller-agent')
     addSellerMessage("🔄 Fetching my agent...", 'agent')
 
-    setTimeout(() => {
+    try {
+      console.log('🚀 [API CALL] Fetching from: http://localhost:8080/.well-known/agent-card.json')
+      
+      // Make real API call to the A2A server
+      const response = await fetch('http://localhost:8080/.well-known/agent-card.json')
+      
+      console.log('📥 [API RESPONSE] Status:', response.status, response.statusText)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch agent card: ${response.status}`)
+      }
+
+      const agentCardData = await response.json()
+      
+      console.log('✅ [API DATA] Received:', {
+        name: agentCardData.name,
+        agentAID: agentCardData.extensions?.keriIdentifiers?.agentAID,
+        oorRole: agentCardData.extensions?.gleifIdentity?.officialRole
+      })
+      
+      // Extract the three fields from the API response
       const agentCard: AgentCard = {
-        ...AGENT_CARDS.jupiterSellerAgent,
+        alias: agentCardData.name || "Unknown Agent",
+        engagementContextRole: agentCardData.extensions?.gleifIdentity?.engagementRole || "Unknown Role",
+        agentType: "AI",
         verified: true,
         timestamp: new Date().toLocaleTimeString(),
+        // Real API fields
+        name: agentCardData.name,
+        agentAID: agentCardData.extensions?.keriIdentifiers?.agentAID,
+        oorRole: agentCardData.extensions?.gleifIdentity?.officialRole
       }
+      
       setSellerAgentData(agentCard)
       setSellerAgenticStep('seller-agent-fetched')
-      addSellerMessage("✅ My agent fetched successfully!", 'agent')
-    }, 2000)
+      addSellerMessage("✅ My agent fetched successfully from A2A server!", 'agent')
+    } catch (error: any) {
+      console.error('❌ [API ERROR]:', error)
+      addSellerMessage(`❌ Failed to fetch agent: ${error.message}`, 'agent')
+      setSellerAgenticStep('idle')
+    }
   }
 
   // Fetch buyer agent (seller side)
@@ -508,16 +605,16 @@ export default function VerificationFlow() {
                     </div>
                     <div className="space-y-3 text-sm text-slate-700">
                       <p>
-                        <strong className="font-semibold text-slate-900">Alias:</strong>{" "}
-                        <span className="break-words">{buyerAgentData.alias}</span>
+                        <strong className="font-semibold text-slate-900">Name:</strong>{" "}
+                        <span className="break-words">{buyerAgentData.name || buyerAgentData.alias}</span>
                       </p>
                       <p>
-                        <strong className="font-semibold text-slate-900">Role:</strong>{" "}
-                        <span className="break-words">{buyerAgentData.engagementContextRole}</span>
+                        <strong className="font-semibold text-slate-900">Agent AID:</strong>{" "}
+                        <span className="break-all text-xs">{buyerAgentData.agentAID || 'N/A'}</span>
                       </p>
                       <p>
-                        <strong className="font-semibold text-slate-900">Type:</strong>{" "}
-                        <span className="break-words">{buyerAgentData.agentType}</span>
+                        <strong className="font-semibold text-slate-900">OOR Role:</strong>{" "}
+                        <span className="break-words">{buyerAgentData.oorRole || buyerAgentData.engagementContextRole}</span>
                       </p>
                       <p className="text-xs text-slate-500 pt-2 border-t border-blue-200">
                         Fetched at: {buyerAgentData.timestamp}
@@ -604,9 +701,9 @@ export default function VerificationFlow() {
                                   <XCircle className="w-4 h-4" />
                                 </button>
                               </div>
-                              <p><strong>Alias:</strong> {sellerAgentFromBuyerData.alias}</p>
-                              <p><strong>Role:</strong> {sellerAgentFromBuyerData.engagementContextRole}</p>
-                              <p><strong>Type:</strong> {sellerAgentFromBuyerData.agentType}</p>
+                              <p><strong>Name:</strong> {sellerAgentFromBuyerData.name || sellerAgentFromBuyerData.alias}</p>
+                              <p><strong>Agent AID:</strong> <span className="break-all">{sellerAgentFromBuyerData.agentAID || 'N/A'}</span></p>
+                              <p><strong>OOR Role:</strong> {sellerAgentFromBuyerData.oorRole || sellerAgentFromBuyerData.engagementContextRole}</p>
                               <p><strong>Time:</strong> {sellerAgentFromBuyerData.timestamp}</p>
                             </div>
                           )}
@@ -719,9 +816,9 @@ export default function VerificationFlow() {
                             </button>
                           </div>
                           <div className="space-y-2 text-xs text-slate-700">
-                            <p><strong>Alias:</strong> {buyerAgentData.alias}</p>
-                            <p><strong>Role:</strong> {buyerAgentData.engagementContextRole}</p>
-                            <p><strong>Type:</strong> {buyerAgentData.agentType}</p>
+                            <p><strong>Name:</strong> {buyerAgentData.name || buyerAgentData.alias}</p>
+                            <p><strong>Agent AID:</strong> <span className="break-all">{buyerAgentData.agentAID || 'N/A'}</span></p>
+                            <p><strong>OOR Role:</strong> {buyerAgentData.oorRole || buyerAgentData.engagementContextRole}</p>
                             <p><strong>Time:</strong> {buyerAgentData.timestamp}</p>
                           </div>
                         </div>
@@ -737,9 +834,9 @@ export default function VerificationFlow() {
                             </button>
                           </div>
                           <div className="space-y-2 text-xs text-slate-700">
-                            <p><strong>Alias:</strong> {sellerAgentFromBuyerData.alias}</p>
-                            <p><strong>Role:</strong> {sellerAgentFromBuyerData.engagementContextRole}</p>
-                            <p><strong>Type:</strong> {sellerAgentFromBuyerData.agentType}</p>
+                            <p><strong>Name:</strong> {sellerAgentFromBuyerData.name || sellerAgentFromBuyerData.alias}</p>
+                            <p><strong>Agent AID:</strong> <span className="break-all">{sellerAgentFromBuyerData.agentAID || 'N/A'}</span></p>
+                            <p><strong>OOR Role:</strong> {sellerAgentFromBuyerData.oorRole || sellerAgentFromBuyerData.engagementContextRole}</p>
                             <p><strong>Time:</strong> {sellerAgentFromBuyerData.timestamp}</p>
                           </div>
                         </div>
@@ -1029,16 +1126,16 @@ export default function VerificationFlow() {
                     </div>
                     <div className="space-y-3 text-sm text-slate-700">
                       <p>
-                        <strong className="font-semibold text-slate-900">Alias:</strong>{" "}
-                        <span className="break-words">{sellerAgentData.alias}</span>
+                        <strong className="font-semibold text-slate-900">Name:</strong>{" "}
+                        <span className="break-words">{sellerAgentData.name || sellerAgentData.alias}</span>
                       </p>
                       <p>
-                        <strong className="font-semibold text-slate-900">Role:</strong>{" "}
-                        <span className="break-words">{sellerAgentData.engagementContextRole}</span>
+                        <strong className="font-semibold text-slate-900">Agent AID:</strong>{" "}
+                        <span className="break-all text-xs">{sellerAgentData.agentAID || 'N/A'}</span>
                       </p>
                       <p>
-                        <strong className="font-semibold text-slate-900">Type:</strong>{" "}
-                        <span className="break-words">{sellerAgentData.agentType}</span>
+                        <strong className="font-semibold text-slate-900">OOR Role:</strong>{" "}
+                        <span className="break-words">{sellerAgentData.oorRole || sellerAgentData.engagementContextRole}</span>
                       </p>
                       <p className="text-xs text-slate-500 pt-2 border-t border-green-200">
                         Fetched at: {sellerAgentData.timestamp}
@@ -1204,9 +1301,9 @@ export default function VerificationFlow() {
                             </button>
                           </div>
                           <div className="space-y-2 text-xs text-slate-700">
-                            <p><strong>Alias:</strong> {sellerAgentData.alias}</p>
-                            <p><strong>Role:</strong> {sellerAgentData.engagementContextRole}</p>
-                            <p><strong>Type:</strong> {sellerAgentData.agentType}</p>
+                            <p><strong>Name:</strong> {sellerAgentData.name || sellerAgentData.alias}</p>
+                            <p><strong>Agent AID:</strong> <span className="break-all">{sellerAgentData.agentAID || 'N/A'}</span></p>
+                            <p><strong>OOR Role:</strong> {sellerAgentData.oorRole || sellerAgentData.engagementContextRole}</p>
                             <p><strong>Time:</strong> {sellerAgentData.timestamp}</p>
                           </div>
                         </div>
