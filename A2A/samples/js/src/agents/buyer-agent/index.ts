@@ -1,5 +1,6 @@
 // src/agents/buyer-agent/index.ts
 import express from "express";
+import cors from "cors";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 import path from "path";
@@ -280,7 +281,7 @@ I can help you discover and connect with seller agents!
 
 // Tommy Hilfiger Buyer Agent Card
 const tommyCardPath = path.resolve(
-  "C:/CHAINAIM3003/mcp-servers/a2a-samples/agent-cards/tommyBuyerAgent-card.json"
+  "C:/CHAINAIM3003/mcp-servers/LegentUI/A2A/agent-cards/tommyBuyerAgent-card.json"
 );
 const tommyHilfigerAgentCard: AgentCard = JSON.parse(
   fs.readFileSync(tommyCardPath, "utf8")
@@ -302,18 +303,27 @@ async function main() {
 
   // 4. Create and setup A2AExpressApp
   const appBuilder = new A2AExpressApp(requestHandler);
-  const expressApp = appBuilder.setupRoutes(express());
+  const app = express();
+  
+  // Add CORS middleware to allow requests from UI
+  app.use(cors({
+    origin: 'http://localhost:3000', // Allow UI origin
+    methods: ['GET', 'POST', 'OPTIONS'],
+    credentials: true
+  }));
+  
+  const expressApp = appBuilder.setupRoutes(app);
 
   // 5. Start the server
   const PORT = process.env.PORT || 9090;
   expressApp.listen(PORT, () => {
-console.log(`
+    console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║       👔 TOMMY HILFIGER AGENT (BUYER) STARTED 👔          ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Name:       ${tommyHilfigerAgentCard.name}              
 ║  Agent AID:  ${tommyHilfigerAgentCard.extensions?.keriIdentifiers?.agentAID}
-║  OOR AID:    ${tommyHilfigerAgentCard.extensions?.vLEImetadata?.oorHolderName}
+║  OOR AID:    ${tommyHilfigerAgentCard.extensions?.gleifIdentity?.officialRole || 'N/A'}
 ╠════════════════════════════════════════════════════════════╣
 ║  Agent Card: http://localhost:${PORT}/.well-known/agent-card.json
 ║  Status:     🟢 READY                                     

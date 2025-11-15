@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import { v4 as uuidv4 } from 'uuid';
 import fs from "fs";
 import path from "path";
@@ -253,7 +254,7 @@ Invoice Details:
 
 // Jupiter Agent Card with custom metadata
 const jupiterCardPath = path.resolve(
-  "C:/CHAINAIM3003/mcp-servers/a2a-samples/agent-cards/jupiterSellerAgent-card.json"
+  "C:/CHAINAIM3003/mcp-servers/LegentUI/A2A/agent-cards/jupiterSellerAgent-card.json"
 );
 const jupiterAgentCard: AgentCard = JSON.parse(
   fs.readFileSync(jupiterCardPath, "utf8")
@@ -275,7 +276,16 @@ async function main() {
 
   // 4. Create and setup A2AExpressApp
   const appBuilder = new A2AExpressApp(requestHandler);
-  const expressApp = appBuilder.setupRoutes(express());
+  const app = express();
+  
+  // Add CORS middleware to allow requests from UI
+  app.use(cors({
+    origin: 'http://localhost:3000', // Allow UI origin
+    methods: ['GET', 'POST', 'OPTIONS'],
+    credentials: true
+  }));
+  
+  const expressApp = appBuilder.setupRoutes(app);
 
   // 5. Start the server
   const PORT = process.env.PORT || 8080;
