@@ -1,7 +1,7 @@
 {
   "name": "Jupiter Seller Agent",
   "description": "Autonomous AI agent responsible for initiating, negotiating, and managing sales orders for JUPITER KNITTING COMPANY.",
-  "url": "https://jupiter-agent.com/",
+  "url": "http://localhost:8080/",
   "provider": {
     "organization": "JUPITER KNITTING COMPANY",
     "url": "https://jupiterknitting.com"

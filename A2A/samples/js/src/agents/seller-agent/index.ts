@@ -185,7 +185,7 @@ Invoice Details:
 - Due Date: ${invoice.invoice.dueDate}
 - Chain: ${invoice.invoice.destinationAccount.chainId}
 - Wallet: ${invoice.invoice.destinationAccount.walletAddress}
-- Ref Type: ${invoice.invoice.refUri.type}
+- Ref URI: ${invoice.invoice.refUri.type}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       ${buyerResponse ? `🔔 BUYER RESPONSE:\n${buyerResponse}` : '⏳ Waiting for buyer response...'}
@@ -270,7 +270,7 @@ const jupiterCardPath = path.resolve(
 
   // "C:/CHAINAIM3003/mcp-servers/LegentUI/A2A/agent-cards/jupiterSellerAgent-card.json"
 
-  "C:/CHAINAIM3003/mcp-servers/LegentUI/A2A/agent-cards/jupiterSellerAgent-card.json"
+  "C:/CHAINAIM3003/mcp-servers/Legent2/Legent/A2A/agent-cards/jupiterSellerAgent-card.json"
 
 );
 const jupiterAgentCard: AgentCard = JSON.parse(

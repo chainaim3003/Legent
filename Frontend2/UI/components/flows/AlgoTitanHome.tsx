@@ -32,6 +32,35 @@ type SellerAgenticStep =
   | 'verifying-buyer-agent'
   | 'buyer-agent-verified'
 
+type InvoiceFlowStep =
+  | 'idle'
+  | 'creating-invoice'
+  | 'invoice-created'
+  | 'sending-to-buyer'
+  | 'buyer-verifying'
+  | 'payment-processing'
+  | 'payment-confirmed'
+  | 'complete'
+
+interface InvoiceFlowData {
+  invoiceId?: string
+  amount?: string
+  transactionId?: string
+  buyerAddress?: string
+  sellerAddress?: string
+  verificationStatus?: string
+  blockExplorerUrl?: string
+}
+
+type SellerAgenticStep =
+  | 'idle'
+  | 'fetching-seller-agent'
+  | 'seller-agent-fetched'
+  | 'fetching-buyer-agent'
+  | 'buyer-agent-fetched'
+  | 'verifying-buyer-agent'
+  | 'buyer-agent-verified'
+
 let messageIdCounter = 0
 const generateUniqueId = () => {
   return `msg-${Date.now()}-${messageIdCounter++}`
@@ -385,6 +414,587 @@ function AboutSection() {
           <li className="flex items-start space-x-2"><span className="text-green-500">✓</span><span><strong>DCSA v3.0:</strong> Enhanced RWA classification</span></li>
           <li className="flex items-start space-x-2"><span className="text-green-500">✓</span><span><strong>Atomic Settlement:</strong> Single-transaction payment</span></li>
         </ul>
+      </div>
+    </div>
+  )
+}
+
+function SellerOrganization() {
+  const [sellerChatMessages, setSellerChatMessages] = useState<ChatMessage[]>([])
+  const [sellerInputMessage, setSellerInputMessage] = useState("")
+  const [sellerAgenticStep, setSellerAgenticStep] = useState<SellerAgenticStep>('idle')
+  const [showSellerAgentCardDetails, setShowSellerAgentCardDetails] = useState(false)
+  const [showBuyerAgentCardDetails, setShowBuyerAgentCardDetails] = useState(false)
+  const chatEndRefSeller = useRef<HTMLDivElement>(null)
+  const [sellerAgentData, setSellerAgentData] = useState<AgentCard | null>(null)
+  const [buyerAgentFromSellerData, setBuyerAgentFromSellerData] = useState<AgentCard | null>(null)
+  const [buyerAgentVerified, setBuyerAgentVerified] = useState(false)
+  const [invoiceFlowStep, setInvoiceFlowStep] = useState<InvoiceFlowStep>('idle')
+  const [invoiceFlowData, setInvoiceFlowData] = useState<InvoiceFlowData>({})
+  const [showInvoiceFlow, setShowInvoiceFlow] = useState(false)
+
+  useEffect(() => {
+    chatEndRefSeller.current?.scrollIntoView({ behavior: "smooth" })
+  }, [sellerChatMessages])
+
+  useEffect(() => {
+    if (sellerAgenticStep === 'buyer-agent-fetched' && buyerAgentFromSellerData && sellerAgenticStep !== 'buyer-agent-verified') {
+      setTimeout(() => {
+        verifyBuyerAgentFromSeller()
+      }, 1000)
+    }
+  }, [sellerAgenticStep, buyerAgentFromSellerData])
+
+  const addSellerMessage = (text: string, type: 'user' | 'agent') => {
+    const newMessage: ChatMessage = {
+      id: generateUniqueId(),
+      text,
+      type,
+      timestamp: new Date(),
+    }
+    setSellerChatMessages(prev => [...prev, newMessage])
+  }
+
+  const fetchSellerAgentChat = async () => {
+    setSellerAgenticStep('fetching-seller-agent')
+    addSellerMessage("🔄 Fetching my agent...", 'agent')
+    try {
+      console.log('🚀 [API CALL] Fetching from: http://localhost:8080/.well-known/agent-card.json')
+      const response = await fetch('http://localhost:8080/.well-known/agent-card.json')
+      console.log('📥 [API RESPONSE] Status:', response.status, response.statusText)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch agent card: ${response.status}`)
+      }
+      const agentCardData = await response.json()
+      console.log('✅ [API DATA] Received:', {
+        name: agentCardData.name,
+        agentAID: agentCardData.extensions?.keriIdentifiers?.agentAID,
+        oorRole: agentCardData.extensions?.gleifIdentity?.officialRole
+      })
+      const agentCard: AgentCard = {
+        alias: agentCardData.name || "Unknown Agent",
+        engagementContextRole: agentCardData.extensions?.gleifIdentity?.engagementRole || "Unknown Role",
+        agentType: "AI",
+        verified: true,
+        timestamp: new Date().toLocaleTimeString(),
+        name: agentCardData.name,
+        agentAID: agentCardData.extensions?.keriIdentifiers?.agentAID,
+        oorRole: agentCardData.extensions?.gleifIdentity?.officialRole
+      }
+      setSellerAgentData(agentCard)
+      setSellerAgenticStep('seller-agent-fetched')
+      addSellerMessage("✅ My agent fetched successfully from A2A server!", 'agent')
+    } catch (error: any) {
+      console.error('❌ [API ERROR]:', error)
+      addSellerMessage(`❌ Failed to fetch agent: ${error.message}`, 'agent')
+      setSellerAgenticStep('idle')
+    }
+  }
+
+  const fetchBuyerAgentChat = async () => {
+    setSellerAgenticStep('fetching-buyer-agent')
+    addSellerMessage("🔄 Fetching buyer agent...", 'agent')
+    try {
+      console.log('🚀 [SELLER API CALL] Fetching buyer from: http://localhost:9090/.well-known/agent-card.json')
+      const response = await fetch('http://localhost:9090/.well-known/agent-card.json')
+      console.log('📥 [SELLER API RESPONSE] Status:', response.status, response.statusText)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch agent card: ${response.status}`)
+      }
+      const agentCardData = await response.json()
+      console.log('✅ [SELLER API DATA] Received buyer agent:', {
+        name: agentCardData.name,
+        agentAID: agentCardData.extensions?.keriIdentifiers?.agentAID,
+        oorRole: agentCardData.extensions?.gleifIdentity?.officialRole
+      })
+      const agentCard: AgentCard = {
+        alias: agentCardData.name || "Unknown Agent",
+        engagementContextRole: agentCardData.extensions?.gleifIdentity?.engagementRole || "Unknown Role",
+        agentType: "AI",
+        verified: true,
+        timestamp: new Date().toLocaleTimeString(),
+        name: agentCardData.name,
+        agentAID: agentCardData.extensions?.keriIdentifiers?.agentAID,
+        oorRole: agentCardData.extensions?.gleifIdentity?.officialRole
+      }
+      setBuyerAgentFromSellerData(agentCard)
+      setSellerAgenticStep('buyer-agent-fetched')
+      addSellerMessage("✅ Buyer agent fetched from A2A server! Click to view details.", 'agent')
+    } catch (error: any) {
+      console.error('❌ [SELLER API ERROR]:', error)
+      addSellerMessage(`❌ Failed to fetch buyer agent: ${error.message}`, 'agent')
+      setSellerAgenticStep('seller-agent-fetched')
+    }
+  }
+
+  const verifyBuyerAgentFromSeller = async () => {
+    setSellerAgenticStep('verifying-buyer-agent')
+    addSellerMessage("🔐 Automatically verifying buyer agent...", 'agent')
+    if (USE_MOCK_VERIFICATION) {
+      setTimeout(() => {
+        setBuyerAgentVerified(true)
+        setSellerAgenticStep('buyer-agent-verified')
+        addSellerMessage("✅ Buyer agent verified successfully!", 'agent')
+      }, 2500)
+      return
+    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/verify/buyer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const result = await response.json()
+      if (result.success) {
+        setBuyerAgentVerified(true)
+        setSellerAgenticStep('buyer-agent-verified')
+        addSellerMessage("✅ Buyer agent verified successfully!", 'agent')
+      } else {
+        addSellerMessage(`❌ Verification failed: ${result.error}`, 'agent')
+      }
+    } catch (error) {
+      addSellerMessage(`❌ Verification error: Cannot connect to API`, 'agent')
+    }
+  }
+
+  const sendInvoice = async () => {
+    setShowInvoiceFlow(true)
+    setInvoiceFlowStep('creating-invoice')
+    addSellerMessage('🚀 Starting invoice process...', 'agent')
+
+    try {
+      // Step 1: Creating invoice
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setInvoiceFlowStep('invoice-created')
+      const invoiceId = `INV-${Math.random().toString(36).substr(2, 9)}`
+      setInvoiceFlowData({ invoiceId, amount: '1.2 ALGO' })
+      
+      // Step 2: Sending to buyer
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setInvoiceFlowStep('sending-to-buyer')
+      
+      // Call the seller agent HTTP endpoint
+      const response = await fetch('http://localhost:8080/api/send-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: 1.2,
+          currency: 'ALGO',
+          dueDate: '2025-12-31'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to send invoice')
+      }
+
+      // Step 3: Buyer verifying
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      setInvoiceFlowStep('buyer-verifying')
+      setInvoiceFlowData(prev => ({
+        ...prev,
+        verificationStatus: 'Verifying vLEI delegation chain...'
+      }))
+      
+      // Step 4: Payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      setInvoiceFlowStep('payment-processing')
+      setInvoiceFlowData(prev => ({
+        ...prev,
+        buyerAddress: '6BK2KDUF6BEOTT3LLPVNJMD3JK3TCZUW73CQ3WZAVPPW6ZVC7GLN343ALI',
+        sellerAddress: 'X6BAC4DP6Q3JBS6BLNGSAKUAUHY3W6GI7NRKLNTM3JGVRAIDQ5MUW3J3VI'
+      }))
+      
+      // Step 5: Payment confirmed
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      const txId = `${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+      setInvoiceFlowStep('payment-confirmed')
+      setInvoiceFlowData(prev => ({
+        ...prev,
+        transactionId: txId,
+        blockExplorerUrl: `https://testnet.explorer.perawallet.app/tx/${txId}`
+      }))
+      
+      // Step 6: Complete
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setInvoiceFlowStep('complete')
+      addSellerMessage('✅ Invoice paid successfully! Transaction confirmed on blockchain.', 'agent')
+      
+    } catch (error: any) {
+      addSellerMessage(`❌ Invoice process failed: ${error.message}`, 'agent')
+      setInvoiceFlowStep('idle')
+      setShowInvoiceFlow(false)
+    }
+  }
+
+  const handleSellerSendMessage = () => {
+    if (!sellerInputMessage.trim()) return
+    const message = sellerInputMessage.trim().toLowerCase()
+    addSellerMessage(sellerInputMessage, 'user')
+    setSellerInputMessage("")
+    if (message.includes('fetch my agent') || message.includes('fetch seller agent')) {
+      fetchSellerAgentChat()
+    } else if (message.includes('fetch buyer agent')) {
+      if (sellerAgentData) {
+        fetchBuyerAgentChat()
+      } else {
+        addSellerMessage("⚠️ Please fetch your seller agent first!", 'agent')
+      }
+    } else if (message.includes('verify buyer')) {
+      if (buyerAgentFromSellerData) {
+        verifyBuyerAgentFromSeller()
+      } else {
+        addSellerMessage("⚠️ Please fetch the buyer agent first!", 'agent')
+      }
+    } else if (message.includes('send invoice') || message.includes('create invoice')) {
+      sendInvoice()
+    } else {
+      addSellerMessage("I can help you with: 'fetch my agent', 'fetch buyer agent', 'verify buyer agent', 'send invoice'", 'agent')
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-slate-100 p-4 lg:p-8">
+      <div className="max-w-[1400px] mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
+            Exporter Organization
+          </h1>
+          <p className="text-slate-600 text-sm lg:text-base font-medium">
+            vLEI Verified AI Agent for Seller
+          </p>
+        </div>
+
+        <div className="border border-slate-300 rounded-xl shadow-lg overflow-hidden bg-white flex flex-col max-w-4xl mx-auto">
+          {/* Organization Header */}
+          <div className="bg-white p-6 lg:p-8 border-b border-slate-300">
+            <div className="flex items-start gap-3 lg:gap-4">
+              <div className="bg-green-100 p-2.5 lg:p-3 rounded-lg flex-shrink-0">
+                <Building className="w-5 h-5 lg:w-6 lg:h-6 text-green-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base lg:text-lg font-semibold text-slate-900 mb-2 lg:mb-3">
+                  Seller Organization
+                </h2>
+                <p className="text-sm lg:text-base text-slate-700 font-medium mb-2 break-words">
+                  {LEI_DATA.jupiter.name}
+                </p>
+                <div className="space-y-2 lg:space-y-3 text-xs lg:text-sm text-slate-600">
+                  <p>
+                    <strong className="font-semibold">LEI:</strong>{" "}
+                    <span className="break-all">{LEI_DATA.jupiter.lei}</span>
+                  </p>
+                  <p>
+                    <strong className="font-semibold">Address:</strong>{" "}
+                    <span className="break-words">{LEI_DATA.jupiter.address}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Invoice Flow Display */}
+          {showInvoiceFlow && (
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-6 lg:p-8 border-b border-slate-300">
+              <h3 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
+                <Package className="w-5 h-5 text-purple-600" />
+                Invoice Agentic Flow
+              </h3>
+              <div className="space-y-4">
+                {/* Step 1: Creating Invoice */}
+                <div className={`p-4 rounded-lg border-2 transition-all ${
+                  invoiceFlowStep === 'creating-invoice' ? 'border-yellow-400 bg-yellow-50 animate-pulse' :
+                  ['invoice-created', 'sending-to-buyer', 'buyer-verifying', 'payment-processing', 'payment-confirmed', 'complete'].includes(invoiceFlowStep) ? 'border-green-400 bg-green-50' :
+                  'border-slate-200 bg-slate-50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      ['invoice-created', 'sending-to-buyer', 'buyer-verifying', 'payment-processing', 'payment-confirmed', 'complete'].includes(invoiceFlowStep) ? 'bg-green-500' :
+                      invoiceFlowStep === 'creating-invoice' ? 'bg-yellow-400' : 'bg-slate-300'
+                    }`}>
+                      {['invoice-created', 'sending-to-buyer', 'buyer-verifying', 'payment-processing', 'payment-confirmed', 'complete'].includes(invoiceFlowStep) ? 
+                        <Check className="w-5 h-5 text-white" /> : 
+                        <span className="text-white font-bold">1</span>
+                      }
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">📄 Creating Invoice</p>
+                      {invoiceFlowData.invoiceId && (
+                        <p className="text-xs text-slate-600 mt-1">ID: {invoiceFlowData.invoiceId}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 2: Sending to Buyer */}
+                <div className={`p-4 rounded-lg border-2 transition-all ${
+                  invoiceFlowStep === 'sending-to-buyer' ? 'border-yellow-400 bg-yellow-50 animate-pulse' :
+                  ['buyer-verifying', 'payment-processing', 'payment-confirmed', 'complete'].includes(invoiceFlowStep) ? 'border-green-400 bg-green-50' :
+                  'border-slate-200 bg-slate-50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      ['buyer-verifying', 'payment-processing', 'payment-confirmed', 'complete'].includes(invoiceFlowStep) ? 'bg-green-500' :
+                      invoiceFlowStep === 'sending-to-buyer' ? 'bg-yellow-400' : 'bg-slate-300'
+                    }`}>
+                      {['buyer-verifying', 'payment-processing', 'payment-confirmed', 'complete'].includes(invoiceFlowStep) ? 
+                        <Check className="w-5 h-5 text-white" /> : 
+                        <span className="text-white font-bold">2</span>
+                      }
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">📤 Sending to Buyer Agent</p>
+                      {invoiceFlowData.amount && (
+                        <p className="text-xs text-slate-600 mt-1">Amount: {invoiceFlowData.amount}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 3: Buyer Verifying */}
+                <div className={`p-4 rounded-lg border-2 transition-all ${
+                  invoiceFlowStep === 'buyer-verifying' ? 'border-yellow-400 bg-yellow-50 animate-pulse' :
+                  ['payment-processing', 'payment-confirmed', 'complete'].includes(invoiceFlowStep) ? 'border-green-400 bg-green-50' :
+                  'border-slate-200 bg-slate-50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      ['payment-processing', 'payment-confirmed', 'complete'].includes(invoiceFlowStep) ? 'bg-green-500' :
+                      invoiceFlowStep === 'buyer-verifying' ? 'bg-yellow-400' : 'bg-slate-300'
+                    }`}>
+                      {['payment-processing', 'payment-confirmed', 'complete'].includes(invoiceFlowStep) ? 
+                        <Check className="w-5 h-5 text-white" /> : 
+                        <span className="text-white font-bold">3</span>
+                      }
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">🔐 Buyer Verifying Seller (vLEI)</p>
+                      <p className="text-xs text-slate-600 mt-1">KERI delegation chain validation</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 4: Payment Processing */}
+                <div className={`p-4 rounded-lg border-2 transition-all ${
+                  invoiceFlowStep === 'payment-processing' ? 'border-yellow-400 bg-yellow-50 animate-pulse' :
+                  ['payment-confirmed', 'complete'].includes(invoiceFlowStep) ? 'border-green-400 bg-green-50' :
+                  'border-slate-200 bg-slate-50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      ['payment-confirmed', 'complete'].includes(invoiceFlowStep) ? 'bg-green-500' :
+                      invoiceFlowStep === 'payment-processing' ? 'bg-yellow-400' : 'bg-slate-300'
+                    }`}>
+                      {['payment-confirmed', 'complete'].includes(invoiceFlowStep) ? 
+                        <Check className="w-5 h-5 text-white" /> : 
+                        <span className="text-white font-bold">4</span>
+                      }
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">💳 Payment Processing</p>
+                      <p className="text-xs text-slate-600 mt-1">Algorand TestNet transaction</p>
+                      {invoiceFlowData.buyerAddress && (
+                        <p className="text-xs text-slate-500 mt-1 break-all">From: {invoiceFlowData.buyerAddress?.substring(0, 20)}...</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 5: Payment Confirmed */}
+                <div className={`p-4 rounded-lg border-2 transition-all ${
+                  invoiceFlowStep === 'payment-confirmed' ? 'border-yellow-400 bg-yellow-50 animate-pulse' :
+                  invoiceFlowStep === 'complete' ? 'border-green-400 bg-green-50' :
+                  'border-slate-200 bg-slate-50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      invoiceFlowStep === 'complete' ? 'bg-green-500' :
+                      invoiceFlowStep === 'payment-confirmed' ? 'bg-yellow-400' : 'bg-slate-300'
+                    }`}>
+                      {invoiceFlowStep === 'complete' ? 
+                        <Check className="w-5 h-5 text-white" /> : 
+                        <span className="text-white font-bold">5</span>
+                      }
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">✅ Payment Confirmed</p>
+                      {invoiceFlowData.transactionId && (
+                        <>
+                          <p className="text-xs text-slate-600 mt-1">TX: {invoiceFlowData.transactionId}</p>
+                          {invoiceFlowData.blockExplorerUrl && (
+                            <a 
+                              href={invoiceFlowData.blockExplorerUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline mt-1 block"
+                            >
+                              View on Explorer →
+                            </a>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 6: Complete */}
+                <div className={`p-4 rounded-lg border-2 transition-all ${
+                  invoiceFlowStep === 'complete' ? 'border-purple-400 bg-purple-50' : 'border-slate-200 bg-slate-50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      invoiceFlowStep === 'complete' ? 'bg-purple-500' : 'bg-slate-300'
+                    }`}>
+                      {invoiceFlowStep === 'complete' ? 
+                        <Check className="w-5 h-5 text-white" /> : 
+                        <span className="text-white font-bold">6</span>
+                      }
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">🎉 Transaction Complete</p>
+                      <p className="text-xs text-slate-600 mt-1">Invoice paid and confirmed</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Agent Display Area */}
+          <div className="flex-1 bg-gradient-to-br from-slate-50 to-green-50 p-6 lg:p-8 border-b border-slate-300 overflow-y-auto min-h-[400px]">
+            {(sellerAgenticStep === 'idle' || sellerAgenticStep === 'fetching-seller-agent') && (
+              <div className="w-full text-center py-16 text-slate-400">
+                <Bot className="w-20 h-20 mx-auto mb-4 opacity-20" />
+                <p className="text-base font-medium">Ready to begin</p>
+                <p className="text-sm mt-2">Type "fetch my agent" to start</p>
+              </div>
+            )}
+            
+            {sellerAgenticStep !== 'idle' && sellerAgenticStep !== 'fetching-seller-agent' && sellerAgentData && (
+              <div className="space-y-6 animate-fade-in">
+                {/* Seller Agent Card */}
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-green-600" />
+                    Seller Agent Details
+                  </h3>
+                  <div className="p-6 bg-green-50 border-2 border-green-200 rounded-xl shadow-sm">
+                    <div className="flex items-start justify-between mb-4">
+                      <h4 className="text-base font-bold text-green-900">Agent Card</h4>
+                      <Check className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div className="space-y-3 text-sm text-slate-700">
+                      <p>
+                        <strong className="font-semibold text-slate-900">Name:</strong>{" "}
+                        <span className="break-words">{sellerAgentData.name || sellerAgentData.alias}</span>
+                      </p>
+                      <p>
+                        <strong className="font-semibold text-slate-900">Agent AID:</strong>{" "}
+                        <span className="break-all text-xs">{sellerAgentData.agentAID || 'N/A'}</span>
+                      </p>
+                      <p>
+                        <strong className="font-semibold text-slate-900">OOR Role:</strong>{" "}
+                        <span className="break-words">{sellerAgentData.oorRole || sellerAgentData.engagementContextRole}</span>
+                      </p>
+                      <p className="text-xs text-slate-500 pt-2 border-t border-green-200">
+                        Fetched at: {sellerAgentData.timestamp}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Buyer Agent Card - if fetched */}
+                {buyerAgentFromSellerData && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                      <Package className="w-5 h-5 text-blue-600" />
+                      Buyer Agent Details
+                    </h3>
+                    <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-xl shadow-sm">
+                      <div className="flex items-start justify-between mb-4">
+                        <h4 className="text-base font-bold text-blue-900">Agent Card</h4>
+                        {buyerAgentVerified && <Check className="w-6 h-6 text-blue-600" />}
+                      </div>
+                      <div className="space-y-3 text-sm text-slate-700">
+                        <p>
+                          <strong className="font-semibold text-slate-900">Name:</strong>{" "}
+                          <span className="break-words">{buyerAgentFromSellerData.name || buyerAgentFromSellerData.alias}</span>
+                        </p>
+                        <p>
+                          <strong className="font-semibold text-slate-900">Agent AID:</strong>{" "}
+                          <span className="break-all text-xs">{buyerAgentFromSellerData.agentAID || 'N/A'}</span>
+                        </p>
+                        <p>
+                          <strong className="font-semibold text-slate-900">OOR Role:</strong>{" "}
+                          <span className="break-words">{buyerAgentFromSellerData.oorRole || buyerAgentFromSellerData.engagementContextRole}</span>
+                        </p>
+                        <p className="text-xs text-slate-500 pt-2 border-t border-blue-200">
+                          Fetched at: {buyerAgentFromSellerData.timestamp}
+                        </p>
+                        {buyerAgentVerified && (
+                          <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded text-xs text-green-800 font-semibold">
+                            ✅ Verified Successfully
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {sellerAgentData && !buyerAgentFromSellerData && (
+                  <div className="mt-4 text-center text-sm text-slate-500">
+                    Next: Type "fetch buyer agent" to continue
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Chat Area */}
+          <div className="bg-slate-50 border-t border-slate-300">
+            <div className="h-48 overflow-y-auto p-4 space-y-2">
+              {sellerChatMessages.length === 0 && (
+                <div className="text-center text-sm text-slate-500 py-8">
+                  <p>Type a command to start:</p>
+                  <p className="text-xs mt-1">• fetch my agent</p>
+                  <p className="text-xs">• fetch buyer agent</p>
+                  <p className="text-xs">• send invoice</p>
+                </div>
+              )}
+              {sellerChatMessages.map((msg) => (
+                <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${
+                    msg.type === 'user' 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-white border border-slate-200 text-slate-800'
+                  }`}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              <div ref={chatEndRefSeller} />
+            </div>
+            
+            {/* Input Area */}
+            <div className="p-4 border-t border-slate-200">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={sellerInputMessage}
+                  onChange={(e) => setSellerInputMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSellerSendMessage()}
+                  placeholder="Type a command..."
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <button 
+                  onClick={handleSellerSendMessage} 
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
