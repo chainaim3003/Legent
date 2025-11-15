@@ -3,6 +3,14 @@ import cors from "cors";
 import { v4 as uuidv4 } from 'uuid';
 import fs from "fs";
 import path from "path";
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from seller-agent/.env
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 import { A2AClient } from "@a2a-js/sdk/client";
 import type { InvoiceSchema, InvoiceMessage } from '../../types/invoice.js';
@@ -109,8 +117,8 @@ class SellerAgentExecutor implements AgentExecutor {
         const invoice: InvoiceMessage = {
           invoiceId: `INV-${uuidv4().substring(0, 8)}`,
           invoice: {
-            amount: 5000.00,
-            currency: 'USD',
+            amount: parseFloat(process.env.INVOICE_AMOUNT || '5000.00'),
+            currency: process.env.INVOICE_CURRENCY || 'USD',
             dueDate: '2025-12-31',
             refUri: {
               type: 'transaction_hash',
@@ -118,8 +126,8 @@ class SellerAgentExecutor implements AgentExecutor {
             },
             destinationAccount: {
               type: 'digital_asset',
-              chainId: 'ethereum-mainnet',
-              walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb'
+              chainId: process.env.ALGORAND_GENESIS_ID || 'testnet-v1.0',
+              walletAddress: process.env.SELLER_ADDRESS || ''
             }
           },
           timestamp: new Date().toISOString(),
@@ -132,9 +140,14 @@ class SellerAgentExecutor implements AgentExecutor {
         // Send invoice to buyer agent
         try {
           const buyerAgentUrl = 'http://localhost:9090';
+          
+          console.log(`[SellerAgent] Connecting to buyer agent at ${buyerAgentUrl}...`);
+          
+          // Use direct URL for local testing (agent card URL field points to production domain)
           const buyerClient = new A2AClient(buyerAgentUrl);
-
-          console.log(`[SellerAgent] Sending invoice to buyer at ${buyerAgentUrl}...`);
+          
+          console.log(`[SellerAgent] Connected to buyer agent`);
+          console.log(`[SellerAgent] Sending invoice to buyer...`);
 
           // Create message to send
           const stream = buyerClient.sendMessageStream({
@@ -254,13 +267,32 @@ Invoice Details:
 
 // Jupiter Agent Card with custom metadata
 const jupiterCardPath = path.resolve(
-  "C:/CHAINAIM3003/mcp-servers/LegentUI/A2A/agent-cards/jupiterSellerAgent-card.json"
+  
+  // "C:/CHAINAIM3003/mcp-servers/LegentUI/A2A/agent-cards/jupiterSellerAgent-card.json"
+
+  "C:/SATHYA/CHAINAIM3003/mcp-servers/stellarboston/vLEI1/LegentUI/A2A/agent-cards/jupiterSellerAgent-card.json"
+
 );
 const jupiterAgentCard: AgentCard = JSON.parse(
   fs.readFileSync(jupiterCardPath, "utf8")
 );
 
 async function main() {
+  // Validate environment variables
+  if (!process.env.SELLER_ADDRESS) {
+    console.error('❌ ERROR: SELLER_ADDRESS not set in .env file');
+    process.exit(1);
+  }
+  
+  if (!process.env.ALGORAND_GENESIS_ID) {
+    console.warn('⚠️  WARNING: ALGORAND_GENESIS_ID not set, using default: testnet-v1.0');
+  }
+  
+  console.log('✅ Environment variables loaded:');
+  console.log(`   Seller Address: ${process.env.SELLER_ADDRESS}`);
+  console.log(`   Chain ID: ${process.env.ALGORAND_GENESIS_ID}`);
+  console.log(`   Invoice Amount: ${process.env.INVOICE_CURRENCY} ${process.env.INVOICE_AMOUNT}\n`);
+  
   // 1. Create TaskStore
   const taskStore: TaskStore = new InMemoryTaskStore();
 

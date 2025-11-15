@@ -1,7 +1,7 @@
 {
   "name": "Tommy Buyer Agent",
   "description": "AI agent responsible for submitting, negotiating, and tracking purchase orders for TOMMY HILFIGER EUROPE B.V.",
-  "url": "https://tommy-agent.com/",
+  "url": "http://localhost:9090",
   "provider": {
     "organization": "TOMMY HILFIGER EUROPE B.V.",
     "url": "https://tommyhilfiger.com"

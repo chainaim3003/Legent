@@ -22,9 +22,10 @@
     "@genkit-ai/vertexai": "^1.8.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
+    "algosdk": "^3.5.2",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.0",
+    "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "genkit": "^1.18.0",
     "uuid": "^11.0.3"
