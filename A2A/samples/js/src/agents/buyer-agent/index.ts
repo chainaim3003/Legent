@@ -42,34 +42,34 @@ async function executeAlgorandPayment(params: {
   toAddress: string;
   amount: number;
 }): Promise<{ txId: string; confirmedRound: number }> {
-  
+
   const buyerMnemonic = process.env.BUYER_MNEMONIC;
   if (!buyerMnemonic) {
     throw new Error('BUYER_MNEMONIC environment variable not set');
   }
-  
+
   const algodToken = '';
   const algodServer = 'https://testnet-api.algonode.cloud';
   const algodPort = '';
   const algodClient = new algosdk.Algodv2(algodToken, algodServer, algodPort);
-  
+
   const senderAccount = algosdk.mnemonicToSecretKey(buyerMnemonic);
-  
+
   console.log(`[Payment] Sender: ${senderAccount.addr}`);
   console.log(`[Payment] Recipient: ${params.toAddress}`);
   console.log(`[Payment] Amount: ${params.amount} ALGO`);
-  
+
   const accountInfo = await algodClient.accountInformation(senderAccount.addr).do();
   const balanceInAlgo = Number(accountInfo.amount) / 1_000_000;
   console.log(`[Payment] Balance: ${balanceInAlgo} ALGO`);
-  
+
   const requiredAmount = Number(params.amount);
   if (balanceInAlgo < requiredAmount + 0.001) {
     throw new Error(`Insufficient balance: ${balanceInAlgo} ALGO (need ${requiredAmount + 0.001} ALGO)`);
   }
-  
+
   const suggestedParams = await algodClient.getTransactionParams().do();
-  
+
   const ptxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
     sender: senderAccount.addr,
     receiver: params.toAddress,
@@ -77,27 +77,27 @@ async function executeAlgorandPayment(params: {
     suggestedParams,
     note: new Uint8Array(Buffer.from(`Invoice payment - ${new Date().toISOString()}`))
   });
-  
+
   const signedTxn = ptxn.signTxn(senderAccount.sk);
-  
+
   console.log(`[Payment] Submitting transaction...`);
   const sendResult = await algodClient.sendRawTransaction(signedTxn).do();
   const txId = sendResult.txid;  // Note: lowercase 'txid'
-  
+
   if (!txId) {
     console.error(`[Payment] Send result:`, sendResult);
     throw new Error('Transaction submission failed - no txId returned');
   }
-  
+
   console.log(`[Payment] Transaction sent: ${txId}`);
   console.log(`[Payment] Explorer: https://testnet.explorer.perawallet.app/tx/${txId}`);
-  
+
   // Algorand TestNet typically confirms in 3-5 seconds
   const confirmedTxn = await algosdk.waitForConfirmation(algodClient, txId, 4);
   const confirmedRound = confirmedTxn['confirmed-round'];
-  
+
   console.log(`[Payment] ✅ Confirmed in round ${confirmedRound}`);
-  
+
   return { txId, confirmedRound };
 }
 
@@ -180,7 +180,7 @@ class BuyerAgentExecutor implements AgentExecutor {
 
       if (dataParts.length > 0) {
         console.log("[BuyerAgent] 📄 Received invoice from seller...");
-        
+
         eventBus.publish({
           kind: "status-update",
           taskId, contextId,
@@ -252,11 +252,11 @@ class BuyerAgentExecutor implements AgentExecutor {
           }
 
           const validationResult = await verificationResponse.json();
-          
+
           console.log(`[BuyerAgent] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
           console.log(`[BuyerAgent] 🔐 vLEI VALIDATION RESULTS (FROM KERI LOGS):`);
           console.log(`[BuyerAgent] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-          
+
           // STEP 3: STRICTLY VALIDATE THE ACTUAL KERI DELEGATION CHAIN
           // This checks the REAL cryptographic verification from KERI logs, not just API success
           const delegationChainVerified = validationResult.validation?.delegationChain?.verified === true;
@@ -264,9 +264,9 @@ class BuyerAgentExecutor implements AgentExecutor {
           const oorHolderKELVerified = validationResult.validation?.kelVerification?.oorHolderKEL?.verified === true;
           const notRevoked = validationResult.validation?.credentialStatus?.revoked === false;
           const notExpired = validationResult.validation?.credentialStatus?.expired === false;
-          
+
           // ALL conditions must be true for payment to proceed
-          const isDelegationValid = 
+          const isDelegationValid =
             validationResult.success === true &&
             delegationChainVerified &&
             agentKELVerified &&
@@ -278,7 +278,7 @@ class BuyerAgentExecutor implements AgentExecutor {
           const sellerAgentName = validationResult.agent || sellerCard.name || 'Unknown Agent';
           const oorRole = validationResult.validation?.delegationChain?.oorRole || validationResult.oorHolder || 'Unknown Role';
           const legalEntity = validationResult.validation?.delegationChain?.legalEntity || 'Unknown Legal Entity';
-          
+
           console.log(`[BuyerAgent] Agent Name: ${sellerAgentName}`);
           console.log(`[BuyerAgent] OOR Role: ${oorRole}`);
           console.log(`[BuyerAgent] Legal Entity: ${legalEntity}`);
@@ -290,7 +290,7 @@ class BuyerAgentExecutor implements AgentExecutor {
           console.log(`[BuyerAgent]   ✓ Credential Not Revoked: ${notRevoked ? '✅ YES' : '❌ NO'}`);
           console.log(`[BuyerAgent]   ✓ Credential Not Expired: ${notExpired ? '✅ YES' : '❌ NO'}`);
           console.log(`[BuyerAgent]`);
-          
+
           if (isDelegationValid) {
             console.log(`[BuyerAgent] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
             console.log(`[BuyerAgent] ✅ VERIFICATION SUCCESS`);
@@ -337,7 +337,7 @@ class BuyerAgentExecutor implements AgentExecutor {
           } as TaskStatusUpdateEvent);
 
           try {
-            const validationMessage = isDelegationValid 
+            const validationMessage = isDelegationValid
               ? `✅ VALIDATION APPROVED\n\nInvoice ID: ${invoiceData.invoiceId}\n\n🔐 vLEI Verification Results:\n  - Agent: ${validationResult.agent}\n  - OOR Holder: ${validationResult.oorHolder}\n  - Delegation Chain: ✓ VERIFIED\n  - Agent KEL: ✓ VERIFIED\n  - OOR Holder KEL: ✓ VERIFIED\n  - Credential Status: ✓ ACTIVE (not revoked/expired)\n\n✓ Your invoice has been approved for payment.`
               : `❌ VALIDATION REJECTED\n\nInvoice ID: ${invoiceData.invoiceId}\n\n🔐 vLEI Verification Results:\n  - Agent: ${validationResult.agent}\n  - Status: REJECTED\n  - Reason: ${validationResult.error || 'Delegation chain verification failed'}\n\n⚠️ Your invoice cannot be processed due to failed vLEI verification.`;
 
@@ -352,7 +352,7 @@ class BuyerAgentExecutor implements AgentExecutor {
                 }
               ]
             });
-            
+
             console.log(`[BuyerAgent] ✅ Validation result sent to seller agent`);
           } catch (notifyError: any) {
             console.error(`[BuyerAgent] ⚠️ Failed to notify seller agent:`, notifyError.message);
@@ -377,13 +377,13 @@ class BuyerAgentExecutor implements AgentExecutor {
             } as TaskStatusUpdateEvent);
 
             console.log(`[BuyerAgent] Invoice destination account:`, invoiceData.invoice.destinationAccount);
-            
+
             // Validate wallet address exists
             const walletAddress = invoiceData.invoice.destinationAccount?.walletAddress;
             if (!walletAddress) {
               throw new Error('Invoice missing walletAddress in destinationAccount');
             }
-            
+
             console.log(`[BuyerAgent] Payment parameters:`);
             console.log(`[BuyerAgent]   - toAddress: ${walletAddress}`);
             console.log(`[BuyerAgent]   - amount: ${invoiceData.invoice.amount}`);
@@ -423,7 +423,7 @@ class BuyerAgentExecutor implements AgentExecutor {
                   }
                 ]
               });
-              
+
               console.log(`[BuyerAgent] ✅ Payment confirmation sent to seller agent`);
             } catch (notifyError: any) {
               console.error(`[BuyerAgent] ⚠️ Failed to notify seller of payment:`, notifyError.message);
@@ -643,8 +643,8 @@ I can help you discover and connect with seller agents!
 
 // Tommy Hilfiger Buyer Agent Card
 const tommyCardPath = path.resolve(
-    //"C:/CHAINAIM3003/mcp-servers/LegentUI/A2A/agent-cards/tommyBuyerAgent-card.json"
-    "C:/SATHYA/CHAINAIM3003/mcp-servers/stellarboston/vLEI1/LegentUI/A2A/agent-cards/tommyBuyerAgent-card.json"
+  //"C:/CHAINAIM3003/mcp-servers/LegentUI/A2A/agent-cards/tommyBuyerAgent-card.json"
+  "C:/CHAINAIM3003/mcp-servers/LegentUI/A2A/agent-cards/tommyBuyerAgent-card.json"
 );
 
 const tommyHilfigerAgentCard: AgentCard = JSON.parse(
@@ -668,14 +668,14 @@ async function main() {
   // 4. Create and setup A2AExpressApp
   const appBuilder = new A2AExpressApp(requestHandler);
   const app = express();
-  
+
   // Add CORS middleware to allow requests from UI
   app.use(cors({
     origin: 'http://localhost:3000', // Allow UI origin
     methods: ['GET', 'POST', 'OPTIONS'],
     credentials: true
   }));
-  
+
   const expressApp = appBuilder.setupRoutes(app);
 
   // 5. Start the server

@@ -140,12 +140,12 @@ class SellerAgentExecutor implements AgentExecutor {
         // Send invoice to buyer agent
         try {
           const buyerAgentUrl = 'http://localhost:9090';
-          
+
           console.log(`[SellerAgent] Connecting to buyer agent at ${buyerAgentUrl}...`);
-          
+
           // Use direct URL for local testing (agent card URL field points to production domain)
           const buyerClient = new A2AClient(buyerAgentUrl);
-          
+
           console.log(`[SellerAgent] Connected to buyer agent`);
           console.log(`[SellerAgent] Sending invoice to buyer...`);
 
@@ -267,10 +267,10 @@ Invoice Details:
 
 // Jupiter Agent Card with custom metadata
 const jupiterCardPath = path.resolve(
-  
+
   // "C:/CHAINAIM3003/mcp-servers/LegentUI/A2A/agent-cards/jupiterSellerAgent-card.json"
 
-  "C:/SATHYA/CHAINAIM3003/mcp-servers/stellarboston/vLEI1/LegentUI/A2A/agent-cards/jupiterSellerAgent-card.json"
+  "C:/CHAINAIM3003/mcp-servers/LegentUI/A2A/agent-cards/jupiterSellerAgent-card.json"
 
 );
 const jupiterAgentCard: AgentCard = JSON.parse(
@@ -283,16 +283,16 @@ async function main() {
     console.error('❌ ERROR: SELLER_ADDRESS not set in .env file');
     process.exit(1);
   }
-  
+
   if (!process.env.ALGORAND_GENESIS_ID) {
     console.warn('⚠️  WARNING: ALGORAND_GENESIS_ID not set, using default: testnet-v1.0');
   }
-  
+
   console.log('✅ Environment variables loaded:');
   console.log(`   Seller Address: ${process.env.SELLER_ADDRESS}`);
   console.log(`   Chain ID: ${process.env.ALGORAND_GENESIS_ID}`);
   console.log(`   Invoice Amount: ${process.env.INVOICE_CURRENCY} ${process.env.INVOICE_AMOUNT}\n`);
-  
+
   // 1. Create TaskStore
   const taskStore: TaskStore = new InMemoryTaskStore();
 
@@ -309,14 +309,14 @@ async function main() {
   // 4. Create and setup A2AExpressApp
   const appBuilder = new A2AExpressApp(requestHandler);
   const app = express();
-  
+
   // Add CORS middleware to allow requests from UI
   app.use(cors({
     origin: 'http://localhost:3000', // Allow UI origin
     methods: ['GET', 'POST', 'OPTIONS'],
     credentials: true
   }));
-  
+
   const expressApp = appBuilder.setupRoutes(app);
 
   // 5. Start the server
