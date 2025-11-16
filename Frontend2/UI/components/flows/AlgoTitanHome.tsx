@@ -1,26 +1,66 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
+import { Building, Bot, Send, Check, Shield, Package, Lock } from "lucide-react"
 
-type TabType = 'home' | 'exporter' | 'carrier' | 'importer' | 'financier' | 'marketplace' | 'escrow-marketplace' | 'regulator' | 'admin' | 'about'
+type TabType = 'home' | 'exporter' | 'importer' | 'marketplace' | 'regulator'
+
+interface ChatMessage {
+  id: string
+  text: string
+  type: 'user' | 'agent'
+  timestamp: Date
+}
+
+interface AgentCard {
+  alias: string
+  engagementContextRole: string
+  agentType: string
+  verified?: boolean
+  timestamp?: string
+  name?: string
+  agentAID?: string
+  oorRole?: string
+}
+
+type SellerAgenticStep =
+  | 'idle'
+  | 'fetching-seller-agent'
+  | 'seller-agent-fetched'
+  | 'fetching-buyer-agent'
+  | 'buyer-agent-fetched'
+  | 'verifying-buyer-agent'
+  | 'buyer-agent-verified'
+
+let messageIdCounter = 0
+const generateUniqueId = () => {
+  return `msg-${Date.now()}-${messageIdCounter++}`
+}
+
+const USE_MOCK_VERIFICATION = false
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+
+const LEI_DATA = {
+  tommy: {
+    name: "TOMMY HILFIGER EUROPE B.V.",
+    lei: "54930012QJWZMYHNJW95",
+    address: "Danzigerkade 165, 1013 AP Amsterdam, Netherlands",
+  },
+  jupiter: {
+    name: "JUPITER KNITTING COMPANY",
+    lei: "3358004DXAMRWRUIYJ05",
+    address: "5/22, Textile Park, Tiruppur, Tamil Nadu, India",
+  },
+}
 
 export default function AlgoTitanHome() {
   const [activeTab, setActiveTab] = useState<TabType>('home')
   const [selectedBuyer, setSelectedBuyer] = useState<'BUYER_1' | 'BUYER_2'>('BUYER_1')
-  const [selectedInvestor, setSelectedInvestor] = useState<'INVESTOR_SMALL_1' | 'INVESTOR_SMALL_2' | 'INVESTOR_SMALL_3' | 'INVESTOR_SMALL_4' | 'INVESTOR_SMALL_5' | 'INVESTOR_LARGE_1' | 'INVESTOR_LARGE_2'>('INVESTOR_LARGE_1')
-
-  // Mock wallet - replace with real wallet integration
-  const activeAddress = "LQ6K4E...M144"
-  const algoConfig = { network: 'testnet' }
 
   const handleTabSwitch = (tab: TabType) => setActiveTab(tab)
   const handleBuyerSelection = (buyer: 'BUYER_1' | 'BUYER_2') => {
     setSelectedBuyer(buyer)
     setActiveTab('importer')
-  }
-  const handleInvestorSelection = (investor: typeof selectedInvestor) => {
-    setSelectedInvestor(investor)
-    setActiveTab('financier')
   }
 
   return (
@@ -35,51 +75,24 @@ export default function AlgoTitanHome() {
             <div className="flex-1 flex justify-center space-x-2">
               <NavBtn active={activeTab==='home'} onClick={()=>handleTabSwitch('home')}>🏠 Home</NavBtn>
               <NavBtn active={activeTab==='marketplace'} onClick={()=>handleTabSwitch('marketplace')}>🏬 Marketplace</NavBtn>
-              <NavBtn active={activeTab==='escrow-marketplace'} onClick={()=>handleTabSwitch('escrow-marketplace')} purple>💰 Escrow</NavBtn>
-              <NavBtn active={activeTab==='admin'} onClick={()=>handleTabSwitch('admin')} red>⚙️ Admin</NavBtn>
-              <NavBtn active={activeTab==='about'} onClick={()=>handleTabSwitch('about')}>ℹ️ About</NavBtn>
-            </div>
-
-            {/* Account info */}
-            <div className="flex items-center space-x-4">
-              <span className="text-xs text-gray-600">Network: {algoConfig.network}</span>
-              <span className="px-3 py-1.5 bg-teal-100 text-teal-700 rounded-lg text-sm">{activeAddress}</span>
-              <button className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 text-sm">Disconnect</button>
             </div>
           </div>
 
           {/* Role tabs */}
           <div className="flex justify-center space-x-2 mb-2">
             <NavBtn active={activeTab==='exporter'} onClick={()=>handleTabSwitch('exporter')}>📦 Exporter</NavBtn>
-            <NavBtn active={activeTab==='carrier'} onClick={()=>handleTabSwitch('carrier')}>🚢 Carrier</NavBtn>
             <NavBtn active={activeTab==='importer'} onClick={()=>handleTabSwitch('importer')} green>🏪 Importer</NavBtn>
-            <NavBtn active={activeTab==='financier'} onClick={()=>handleTabSwitch('financier')} purple>💰 Financier</NavBtn>
             <NavBtn active={activeTab==='regulator'} onClick={()=>handleTabSwitch('regulator')}>🏛️ Regulator</NavBtn>
           </div>
 
           {/* Sub-roles */}
-          {(activeTab==='importer'||activeTab==='financier') && (
+          {activeTab==='importer' && (
             <div className="flex justify-center space-x-6">
-              {activeTab==='importer' && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-gray-600">🏪 Importer:</span>
-                  <SubBtn active={selectedBuyer==='BUYER_1'} onClick={()=>handleBuyerSelection('BUYER_1')}>Buyer 1</SubBtn>
-                  <SubBtn active={selectedBuyer==='BUYER_2'} onClick={()=>handleBuyerSelection('BUYER_2')}>Buyer 2</SubBtn>
-                </div>
-              )}
-              {activeTab==='financier' && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-gray-600">💰 Financier:</span>
-                  <span className="text-xs text-gray-500">Large:</span>
-                  <SubBtn active={selectedInvestor==='INVESTOR_LARGE_1'} onClick={()=>handleInvestorSelection('INVESTOR_LARGE_1')}>1</SubBtn>
-                  <SubBtn active={selectedInvestor==='INVESTOR_LARGE_2'} onClick={()=>handleInvestorSelection('INVESTOR_LARGE_2')}>2</SubBtn>
-                  <span className="text-sm text-gray-400 mx-2">|</span>
-                  <span className="text-xs text-gray-500">Small:</span>
-                  {[1,2,3,4,5].map(n=>(
-                    <SubBtn key={n} active={selectedInvestor===`INVESTOR_SMALL_${n}` as any} onClick={()=>handleInvestorSelection(`INVESTOR_SMALL_${n}` as any)}>{n}</SubBtn>
-                  ))}
-                </div>
-              )}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-600">🏪 Importer:</span>
+                <SubBtn active={selectedBuyer==='BUYER_1'} onClick={()=>handleBuyerSelection('BUYER_1')}>Buyer 1</SubBtn>
+                <SubBtn active={selectedBuyer==='BUYER_2'} onClick={()=>handleBuyerSelection('BUYER_2')}>Buyer 2</SubBtn>
+              </div>
             </div>
           )}
         </div>
@@ -89,8 +102,8 @@ export default function AlgoTitanHome() {
       <main className="min-h-screen">
         {activeTab==='home' && <HomeSection />}
         {activeTab==='marketplace' && <MarketplaceSection />}
-        {activeTab==='about' && <AboutSection />}
-        {['exporter','carrier','importer','financier','regulator','admin','escrow-marketplace'].includes(activeTab) && (
+        {activeTab==='exporter' && <SellerOrganization />}
+        {['importer','regulator'].includes(activeTab) && (
           <div className="max-w-4xl mx-auto p-8">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
               <h2 className="text-2xl font-bold mb-4 capitalize">{activeTab.replace('-',' ')} Dashboard</h2>
