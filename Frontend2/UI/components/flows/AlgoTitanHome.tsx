@@ -568,24 +568,60 @@ function SellerOrganization() {
       const invoiceId = `INV-${Math.random().toString(36).substr(2, 9)}`
       setInvoiceFlowData({ invoiceId, amount: '1.2 ALGO' })
       
-      // Step 2: Sending to buyer
+      // Step 2: Sending to buyer via A2A protocol
       await new Promise(resolve => setTimeout(resolve, 1000))
       setInvoiceFlowStep('sending-to-buyer')
       
-      // Call the seller agent HTTP endpoint
-      const response = await fetch('http://localhost:8080/api/send-invoice', {
+      console.log('📤 [FRONTEND] Sending invoice command to seller agent via A2A protocol')
+      
+      // Send A2A protocol message using JSON-RPC format
+      // The seller agent will handle the invoice creation and sending to buyer agent
+      const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      const jsonRpcRequest = {
+        jsonrpc: "2.0",
+        method: "message/stream",
+        params: {
+          message: {
+            messageId: messageId,
+            kind: "message",
+            role: "user",
+            parts: [
+              {
+                kind: "text",
+                text: "send invoice"
+              }
+            ]
+          }
+        },
+        id: 1
+      }
+
+      // Send to seller agent's A2A JSON-RPC endpoint (root path)
+      const response = await fetch('http://localhost:8080/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: 1.2,
-          currency: 'ALGO',
-          dueDate: '2025-12-31'
-        })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream'
+        },
+        body: JSON.stringify(jsonRpcRequest)
       })
 
       if (!response.ok) {
-        throw new Error('Failed to send invoice')
+        throw new Error(`Seller agent returned ${response.status}: ${response.statusText}`)
       }
+
+      console.log('✅ [FRONTEND] Invoice command sent to seller agent successfully')
+      addSellerMessage('📤 Invoice command sent to seller agent via A2A protocol', 'agent')
+
+      // The invoice flow now happens between the agents:
+      // 1. Seller agent receives our message
+      // 2. Seller agent creates and sends invoice to buyer agent
+      // 3. Buyer agent verifies seller's vLEI credentials
+      // 4. Buyer agent executes payment on Algorand
+      // 5. Buyer agent notifies seller agent of payment
+      
+      // For UI purposes, we'll show the expected flow steps
+      // In a full implementation, we'd listen to the agent's event stream for real updates
 
       // Step 3: Buyer verifying
       await new Promise(resolve => setTimeout(resolve, 1500))
@@ -594,6 +630,7 @@ function SellerOrganization() {
         ...prev,
         verificationStatus: 'Verifying vLEI delegation chain...'
       }))
+      addSellerMessage('🔐 Buyer agent is verifying seller vLEI credentials...', 'agent')
       
       // Step 4: Payment processing
       await new Promise(resolve => setTimeout(resolve, 2000))
@@ -603,6 +640,7 @@ function SellerOrganization() {
         buyerAddress: '6BK2KDUF6BEOTT3LLPVNJMD3JK3TCZUW73CQ3WZAVPPW6ZVC7GLN343ALI',
         sellerAddress: 'X6BAC4DP6Q3JBS6BLNGSAKUAUHY3W6GI7NRKLNTM3JGVRAIDQ5MUW3J3VI'
       }))
+      addSellerMessage('💳 Payment being processed on Algorand TestNet...', 'agent')
       
       // Step 5: Payment confirmed
       await new Promise(resolve => setTimeout(resolve, 2000))
@@ -617,9 +655,10 @@ function SellerOrganization() {
       // Step 6: Complete
       await new Promise(resolve => setTimeout(resolve, 1000))
       setInvoiceFlowStep('complete')
-      addSellerMessage('✅ Invoice paid successfully! Transaction confirmed on blockchain.', 'agent')
+      addSellerMessage('✅ Invoice process completed! Check agent logs for actual transaction details.', 'agent')
       
     } catch (error: any) {
+      console.error('❌ [FRONTEND] Invoice process failed:', error)
       addSellerMessage(`❌ Invoice process failed: ${error.message}`, 'agent')
       setInvoiceFlowStep('idle')
       setShowInvoiceFlow(false)

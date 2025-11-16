@@ -644,7 +644,7 @@ I can help you discover and connect with seller agents!
 // Tommy Hilfiger Buyer Agent Card
 const tommyCardPath = path.resolve(
   //"C:/CHAINAIM3003/mcp-servers/LegentUI/A2A/agent-cards/tommyBuyerAgent-card.json"
-  "C:/CHAINAIM3003/mcp-servers/Legent2/Legent/A2A/agent-cards/tommyBuyerAgent-card.json"
+  "C:\\CHAINAIM3003\\mcp-servers\\LegentUI\\A2A\\agent-cards\\tommyBuyerAgent-card.json"
 );
 
 const tommyHilfigerAgentCard: AgentCard = JSON.parse(
