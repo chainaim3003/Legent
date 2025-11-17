@@ -557,7 +557,46 @@ function SellerOrganization() {
 
     try {
       // Step 1: Creating Invoice
-      await new Promise(resolve => setTimeout(resolve, 800))
+      await new Promise(resolve => setTimeout(resolve, 500))
+      setInvoiceFlowStep('invoice-created')
+      addSellerMessage('📝 Invoice being created by seller agent...', 'agent')
+
+      // Step 2: Sending to Buyer Agent
+      await new Promise(resolve => setTimeout(resolve, 500))
+      setInvoiceFlowStep('sending-to-buyer')
+      addSellerMessage('📤 Sending invoice to buyer agent via A2A protocol...', 'agent')
+
+      // Trigger A2A server in background (don't wait for response)
+      const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      const jsonRpcRequest = {
+        jsonrpc: "2.0",
+        method: "message/stream",
+        params: {
+          message: {
+            messageId: messageId,
+            kind: "message",
+            role: "user",
+            parts: [{ kind: "text", text: "send invoice" }]
+          }
+        },
+        id: 1
+      }
+
+      // Fire and forget to A2A server
+      fetch('http://localhost:8080/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream'
+        },
+        body: JSON.stringify(jsonRpcRequest)
+      }).then(response => {
+        console.log('✅ [FRONTEND] A2A server triggered:', response.status)
+      }).catch(error => {
+        console.warn('⚠️ [FRONTEND] A2A server error (continuing with mock flow):', error)
+      })
+
+      // Mock data
       const mockInvoiceId = `INV-${Date.now().toString(36).toUpperCase()}`
       const mockAmount = '5,000.00 USD'
       
@@ -567,13 +606,6 @@ function SellerOrganization() {
         sellerAddress: 'ALGW-SELL-8X9Y2K3M7P...',
         buyerAddress: 'ALGW-BUY-3M7N5P2K8X...'
       })
-      setInvoiceFlowStep('invoice-created')
-      addSellerMessage(`📝 Invoice created: ${mockInvoiceId} for ${mockAmount}`, 'agent')
-
-      // Step 2: Sending to Buyer Agent
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setInvoiceFlowStep('sending-to-buyer')
-      addSellerMessage('📤 Sending invoice to buyer agent via A2A protocol...', 'agent')
 
       // Step 3: Buyer Verifying Seller
       await new Promise(resolve => setTimeout(resolve, 1500))
