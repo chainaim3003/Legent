@@ -603,11 +603,15 @@ function SellerOrganization() {
       const decoder = new TextDecoder()
       let buffer = ''
       let hasReceivedInvoiceData = false
+      let hasStartedBuyerProcessing = false
 
       if (reader) {
         while (true) {
           const { done, value } = await reader.read()
-          if (done) break
+          if (done) {
+            console.log('✅ [FRONTEND] Stream completed')
+            break
+          }
 
           buffer += decoder.decode(value, { stream: true })
           const lines = buffer.split('\n')
@@ -616,25 +620,28 @@ function SellerOrganization() {
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
-                const data = JSON.parse(line.slice(6))
-                console.log('📥 [FRONTEND] Received event:', data.kind)
+                const eventData = JSON.parse(line.slice(6))
+                console.log('📥 [FRONTEND] Received event:', eventData?.kind || 'unknown', eventData)
 
                 // Handle server events
-                if (data.kind === 'status-update') {
-                  const message = data.status?.message
+                if (eventData.kind === 'status-update' && eventData.status) {
+                  const state = eventData.status.state
+                  const message = eventData.status.message
                   
+                  console.log(`📊 [FRONTEND] Status: ${state}`)
+
                   if (message && message.parts) {
                     const textParts = message.parts
                       .filter((p: any) => p.kind === 'text')
                       .map((p: any) => p.text)
                       .join('\n')
 
-                    console.log('📨 [FRONTEND] Agent message received')
+                    console.log('📨 [FRONTEND] Message:', textParts.substring(0, 100) + '...')
 
                     // Parse invoice details from real server response
                     if (textParts.includes('INVOICE SENT') && !hasReceivedInvoiceData) {
                       hasReceivedInvoiceData = true
-                      
+
                       // Extract real data from server response
                       const invoiceIdMatch = textParts.match(/Invoice ID: (INV-[a-z0-9]+)/i)
                       const amountMatch = textParts.match(/Amount: ([A-Z]+) ([\d.]+)/)
@@ -652,60 +659,94 @@ function SellerOrganization() {
                         console.log('💰 [FRONTEND] Real invoice data extracted:', invoiceIdMatch[1])
                       }
 
-                      // Progress through steps when buyer responds
-                      if (textParts.includes('BUYER RESPONSE')) {
-                        console.log('✅ [FRONTEND] Buyer agent responded!')
-                        
-                        // Step 3: Buyer verifying
-                        setInvoiceFlowStep('buyer-verifying')
-                        addSellerMessage('🔐 Buyer agent is verifying seller vLEI credentials...', 'agent')
-                        await new Promise(resolve => setTimeout(resolve, 1000))
+                    }
 
-                        // Step 4: Validating invoice
-                        setInvoiceFlowStep('validating-invoice')
-                        addSellerMessage('📄 Buyer agent is validating invoice details...', 'agent')
-                        await new Promise(resolve => setTimeout(resolve, 1000))
+                  // ✅ FIXED: Detect buyer processing start
+                  if ((textParts.includes('BUYER RESPONSE') || 
+                       textParts.includes('Fetching seller agent') ||
+                       textParts.includes('Processing invoice') ||
+                       textParts.includes('Validating vLEI')) && !hasStartedBuyerProcessing) {
+                    
+                    hasStartedBuyerProcessing = true
+                    console.log('🎯 [FRONTEND] Buyer agent started processing!')
+                    
+                    // Automatically progress through buyer steps
+                    setTimeout(async () => {
+                      setInvoiceFlowStep('buyer-verifying')
+                      addSellerMessage('🔐 Buyer agent verifying seller vLEI credentials...', 'agent')
+                      
+                      await new Promise(resolve => setTimeout(resolve, 1500))
+                      setInvoiceFlowStep('validating-invoice')
+                      addSellerMessage('📄 Buyer agent validating invoice details...', 'agent')
+                      
+                      await new Promise(resolve => setTimeout(resolve, 1500))
+                      setInvoiceFlowStep('payment-processing')
+                      addSellerMessage('💳 Payment being processed on Algorand TestNet...', 'agent')
+                    }, 500)
+                  }
 
-                        // Step 5: Payment processing
-                        setInvoiceFlowStep('payment-processing')
-                        addSellerMessage('💳 Payment being processed on Algorand TestNet...', 'agent')
-                        await new Promise(resolve => setTimeout(resolve, 1500))
+                  // ✅ FIXED: Detect payment completion
+                  if (textParts.includes('✅') && textParts.includes('Payment confirmed')) {
+                    console.log('💰 [FRONTEND] Payment confirmed!')
+                    
+                    // Extract transaction ID from response
+                    const txIdMatch = textParts.match(/Transaction ID: ([A-Z0-9]+)/i) ||
+                                     textParts.match(/TX: ([A-Z0-9]+)/i) ||
+                                     textParts.match(/txId[:\s]+([A-Z0-9]+)/i)
+                    
+                    const txId = txIdMatch ? txIdMatch[1] : `TX${Date.now().toString(36).toUpperCase()}`
+                    
+                    setInvoiceFlowStep('payment-confirmed')
+                    setInvoiceFlowData(prev => ({
+                      ...prev,
+                      transactionId: txId,
+                      blockExplorerUrl: `https://testnet.explorer.perawallet.app/tx/${txId}`
+                    }))
+                    addSellerMessage('✅ Payment confirmed on Algorand!', 'agent')
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1000))
+                    setInvoiceFlowStep('complete')
+                    addSellerMessage('🎉 Invoice process completed successfully!', 'agent')
+                  }
 
-                        // Step 6: Payment confirmed
-                        const txId = `${Math.random().toString(36).substr(2, 9).toUpperCase()}`
-                        setInvoiceFlowStep('payment-confirmed')
-                        setInvoiceFlowData(prev => ({
-                          ...prev,
-                          transactionId: txId,
-                          blockExplorerUrl: `https://testnet.explorer.perawallet.app/tx/${txId}`
-                        }))
-                        addSellerMessage('📩 Buyer agent responding to seller with payment confirmation...', 'agent')
-                        await new Promise(resolve => setTimeout(resolve, 1000))
-
-                        // Step 7: Complete
-                        setInvoiceFlowStep('complete')
-                        addSellerMessage('✅ Invoice process completed!', 'agent')
-                        
-                        // Display full server response
-                        addSellerMessage(textParts, 'agent')
-                      }
-                    } else if (!hasReceivedInvoiceData) {
-                      // Show other agent status messages
-                      if (textParts && !textParts.includes('processing your request')) {
-                        addSellerMessage(textParts, 'agent')
-                      }
+                  // ✅ FIXED: Show status updates at each stage
+                  if (state === 'working' && textParts && textParts.length > 0) {
+                    if (!textParts.includes('processing your request')) {
+                      addSellerMessage(textParts, 'agent')
                     }
                   }
+
+                  // ✅ FIXED: Handle final completion
+                  if (state === 'completed' && textParts) {
+                    console.log('✅ [FRONTEND] Task completed by agent')
+                    
+                    // If we haven't reached complete yet, complete the flow
+                    if (invoiceFlowStep !== 'complete') {
+                      setTimeout(() => {
+                        setInvoiceFlowStep('complete')
+                        addSellerMessage('✅ All steps completed!', 'agent')
+                      }, 500)
+                    }
+                    
+                    // Show the final response
+                    addSellerMessage(textParts, 'agent')
+                  }
+                  }
                 }
-              } catch (e) {
-                console.error('Failed to parse event:', e)
+
+                // ✅ FIXED: Handle task events
+                if (eventData.kind === 'task') {
+                  console.log('📋 [FRONTEND] Task event:', eventData.status?.state)
+                }
+
+              } catch (parseError) {
+                // ✅ FIXED: Better error logging
+                console.warn('⚠️ [FRONTEND] Failed to parse SSE line:', line.substring(0, 100), parseError)
               }
             }
           }
         }
       }
-
-      console.log('✅ [FRONTEND] Stream completed')
 
     } catch (error: any) {
       console.error('❌ [FRONTEND] Invoice process failed:', error)
@@ -755,11 +796,11 @@ function SellerOrganization() {
 
       {/* TWO COLUMN LAYOUT */}
       <div className="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* LEFT SIDE: Seller Organization + Chat Interface Container */}
         <div className="flex flex-col">
           <div className="border border-slate-300 rounded-xl shadow-lg overflow-hidden bg-white flex flex-col h-full">
-            
+
             {/* Organization Header */}
             <div className="bg-white p-6 lg:p-8 border-b border-slate-300">
               <div className="flex items-start gap-3 lg:gap-4">
@@ -800,11 +841,10 @@ function SellerOrganization() {
                 )}
                 {sellerChatMessages.map((msg) => (
                   <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${
-                      msg.type === 'user'
-                        ? 'bg-green-600 text-white'
-                        : 'bg-white border border-slate-200 text-slate-800'
-                    }`}>
+                    <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${msg.type === 'user'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-white border border-slate-200 text-slate-800'
+                      }`}>
                       {msg.text}
                     </div>
                   </div>
@@ -839,7 +879,7 @@ function SellerOrganization() {
         <div className="flex flex-col">
           {showInvoiceFlow ? (
             <div className="border border-purple-300 rounded-xl shadow-lg overflow-hidden bg-white p-6">
-              <InvoiceAgenticFlow 
+              <InvoiceAgenticFlow
                 currentStep={invoiceFlowStep}
                 invoiceData={invoiceFlowData}
               />

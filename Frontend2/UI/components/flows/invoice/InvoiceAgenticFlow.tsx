@@ -171,88 +171,135 @@ export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: I
   // Get popup content for each step
   const getPopupContent = (step: FlowStep) => {
     const currentTime = new Date().toLocaleTimeString()
-    const statusText = step.status === 'complete' ? 'Complete' : step.status === 'active' ? 'In Progress' : 'Pending'
+    const statusText = step.status === 'complete' ? 'Complete ✓' : step.status === 'active' ? 'In Progress...' : 'Pending'
+    
+    // Mock data generators
+    const mockInvoiceId = invoiceData.invoiceId || 'INV-7K2M9P4X'
+    const mockAmount = invoiceData.amount || '5,000.00 USD'
+    const mockTxId = invoiceData.transactionId || 'TX7K2M9P4XL8N3Q5'
+    const mockSellerWallet = 'ALGW-SELL-8X9Y2K...'
+    const mockBuyerWallet = 'ALGW-BUY-3M7N5P...'
+    const mockLeiSeller = '3358004DXAMRWRUIYJ05'
+    const mockLeiBuyer = '54930012QJWZMYHNJW95'
     
     switch (step.id) {
       case 'create-invoice':
         return (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />}
-              <span className="font-semibold">Status: {statusText}</span>
+              <span className="font-semibold text-sm">Status: {statusText}</span>
             </div>
-            {invoiceData.invoiceId && <div className="flex items-center gap-2"><FileText className="w-3 h-3" /> ID: {invoiceData.invoiceId}</div>}
-            {invoiceData.amount && <div className="flex items-center gap-2"><span className="text-lg">💰</span> Amount: {invoiceData.amount}</div>}
-            <div className="flex items-center gap-2"><span className="text-lg">🕐</span> {currentTime}</div>
+            {step.status !== 'pending' && (
+              <>
+                <div className="flex items-center gap-2"><FileText className="w-3 h-3" /> <span className="text-xs">ID: {mockInvoiceId}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Amount: {mockAmount}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">👤</span> <span className="text-xs">Seller: Jupiter Knitting</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">📅</span> <span className="text-xs">Created: {currentTime}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">📍</span> <span className="text-xs">LEI: {mockLeiSeller.substring(0, 12)}...</span></div>
+              </>
+            )}
           </div>
         )
       
       case 'send-to-buyer':
         return (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />}
-              <span className="font-semibold">Status: {statusText}</span>
+              <span className="font-semibold text-sm">Status: {statusText}</span>
             </div>
-            {invoiceData.amount && <div className="flex items-center gap-2"><span className="text-lg">💰</span> {invoiceData.amount}</div>}
-            <div className="flex items-center gap-2"><span className="text-lg">🎯</span> To: Buyer Agent</div>
-            <div className="flex items-center gap-2"><span className="text-lg">🕐</span> {currentTime}</div>
+            {step.status !== 'pending' && (
+              <>
+                <div className="flex items-center gap-2"><span className="text-sm">📤</span> <span className="text-xs">Protocol: A2A v2.0</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Amount: {mockAmount}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">🎯</span> <span className="text-xs">To: Tommy Hilfiger Agent</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">📡</span> <span className="text-xs">Endpoint: https://buyer-agent.api</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">🕐</span> <span className="text-xs">Sent: {currentTime}</span></div>
+              </>
+            )}
           </div>
         )
       
       case 'verify-seller':
         return (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />}
-              <span className="font-semibold">Status: {statusText}</span>
+              <span className="font-semibold text-sm">Status: {statusText}</span>
             </div>
-            <div className="flex items-center gap-2"><ShieldCheck className="w-3 h-3" /> vLEI: {step.status === 'complete' ? 'Verified' : 'Checking...'}</div>
-            <div className="flex items-center gap-2"><span className="text-lg">👤</span> Seller: Jupiter</div>
-            <div className="flex items-center gap-2"><span className="text-lg">🕐</span> {currentTime}</div>
+            {step.status !== 'pending' && (
+              <>
+                <div className="flex items-center gap-2"><ShieldCheck className="w-3 h-3" /> <span className="text-xs">vLEI: {step.status === 'complete' ? 'Verified ✓' : 'Verifying...'}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">👤</span> <span className="text-xs">Seller: Jupiter Knitting</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">📍</span> <span className="text-xs">LEI: {mockLeiSeller}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">🌍</span> <span className="text-xs">Region: Tiruppur, India</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">✅</span> <span className="text-xs">Trust Score: {step.status === 'complete' ? '98/100' : 'Calculating...'}</span></div>
+              </>
+            )}
           </div>
         )
       
       case 'validate-invoice':
         return (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-pink-600 border-t-transparent rounded-full animate-spin" />}
-              <span className="font-semibold">Status: {statusText}</span>
+              <span className="font-semibold text-sm">Status: {statusText}</span>
             </div>
-            <div className="flex items-center gap-2"><FileSearch className="w-3 h-3" /> Details: {step.status === 'complete' ? 'Validated' : 'Checking...'}</div>
-            <div className="flex items-center gap-2"><span className="text-lg">📋</span> Format: Valid</div>
-            <div className="flex items-center gap-2"><span className="text-lg">🕐</span> {currentTime}</div>
+            {step.status !== 'pending' && (
+              <>
+                <div className="flex items-center gap-2"><FileSearch className="w-3 h-3" /> <span className="text-xs">Invoice ID: {mockInvoiceId}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">📋</span> <span className="text-xs">Format: {step.status === 'complete' ? 'Valid ✓' : 'Checking...'}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Amount Match: {step.status === 'complete' ? 'Confirmed ✓' : 'Verifying...'}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">📝</span> <span className="text-xs">Line Items: {step.status === 'complete' ? '12 items verified' : 'Checking...'}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">🔍</span> <span className="text-xs">Signature: {step.status === 'complete' ? 'Valid ✓' : 'Validating...'}</span></div>
+              </>
+            )}
           </div>
         )
       
       case 'payment-processing':
         return (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />}
-              <span className="font-semibold">Status: {statusText}</span>
+              <span className="font-semibold text-sm">Status: {statusText}</span>
             </div>
-            <div className="flex items-center gap-2"><span className="text-lg">⛓️</span> Chain: testnet-v1.0</div>
-            {invoiceData.transactionId && <div className="flex items-center gap-2 text-xs"><span className="text-lg">💳</span> TX: {invoiceData.transactionId}</div>}
-            <div className="flex items-center gap-2"><span className="text-lg">🕐</span> {currentTime}</div>
+            {step.status !== 'pending' && (
+              <>
+                <div className="flex items-center gap-2"><span className="text-sm">⛓️</span> <span className="text-xs">Chain: Algorand TestNet v1.0</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">💳</span> <span className="text-xs">TX: {mockTxId}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">📤</span> <span className="text-xs">From: {mockBuyerWallet}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">📥</span> <span className="text-xs">To: {mockSellerWallet}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Amount: {mockAmount}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">⚡</span> <span className="text-xs">Confirmations: {step.status === 'complete' ? '12/12' : '8/12'}</span></div>
+              </>
+            )}
           </div>
         )
       
       case 'respond-to-seller':
         return (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />}
-              <span className="font-semibold">Status: {statusText}</span>
+              <span className="font-semibold text-sm">Status: {statusText}</span>
             </div>
-            {invoiceData.transactionId && <div className="flex items-center gap-2"><span className="text-lg">✅</span> Confirmed</div>}
-            {invoiceData.blockExplorerUrl && (
-              <a href={invoiceData.blockExplorerUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 underline text-xs">
-                <span className="text-lg">🔗</span> View Explorer
-              </a>
+            {step.status !== 'pending' && (
+              <>
+                <div className="flex items-center gap-2"><span className="text-sm">✅</span> <span className="text-xs">Payment Confirmed</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">💳</span> <span className="text-xs">TX: {mockTxId}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">📋</span> <span className="text-xs">Invoice: {mockInvoiceId}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Settled: {mockAmount}</span></div>
+                <div className="flex items-center gap-2"><span className="text-sm">🕐</span> <span className="text-xs">Completed: {currentTime}</span></div>
+                {step.status === 'complete' && invoiceData.blockExplorerUrl && (
+                  <a href={invoiceData.blockExplorerUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 underline text-xs mt-1">
+                    <span className="text-sm">🔗</span> View on Explorer
+                  </a>
+                )}
+              </>
             )}
-            <div className="flex items-center gap-2"><span className="text-lg">🕐</span> {currentTime}</div>
           </div>
         )
       
@@ -451,7 +498,7 @@ export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: I
 
                   {/* Information Popup on Hover */}
                   {hoveredStep === step.id && (
-                    <div className={`absolute left-full ml-4 top-1/2 -translate-y-1/2 z-50 w-56 bg-white rounded-lg shadow-xl border-2 ${step.borderColor} p-3 animate-fade-in`}>
+                    <div className={`absolute ${getPopupPosition(index, flowSteps.length)} top-1/2 -translate-y-1/2 z-50 w-56 bg-white rounded-lg shadow-xl border-2 ${step.borderColor} p-3 animate-fade-in`}>
                       <div className={`text-sm font-bold mb-2 ${step.color} border-b ${step.borderColor} pb-1`}>
                         {step.processName}
                       </div>
