@@ -170,35 +170,22 @@ export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: I
 
   // Get popup content for each step
   const getPopupContent = (step: FlowStep) => {
-    const currentTime = new Date().toLocaleTimeString()
     const statusText = step.status === 'complete' ? 'Complete ✓' : step.status === 'active' ? 'In Progress...' : 'Pending'
     
-    // Mock data generators
-    const mockInvoiceId = invoiceData.invoiceId || 'INV-7K2M9P4X'
+    const mockInvoiceId = invoiceData.invoiceId || 'INV-MI1YD14G'
     const mockAmount = invoiceData.amount || '5,000.00 USD'
-    const mockTxId = invoiceData.transactionId || 'TX7K2M9P4XL8N3Q5'
-    const mockSellerWallet = 'ALGW-SELL-8X9Y2K...'
-    const mockBuyerWallet = 'ALGW-BUY-3M7N5P...'
-    const mockLeiSeller = '3358004DXAMRWRUIYJ05'
-    const mockLeiBuyer = '54930012QJWZMYHNJW95'
+    const mockTxId = invoiceData.transactionId || 'TXMI1YD5DO'
     
     switch (step.id) {
       case 'create-invoice':
         return (
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />}
+              <span className="text-sm">✅</span>
               <span className="font-semibold text-sm">Status: {statusText}</span>
             </div>
-            {step.status !== 'pending' && (
-              <>
-                <div className="flex items-center gap-2"><FileText className="w-3 h-3" /> <span className="text-xs">ID: {mockInvoiceId}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Amount: {mockAmount}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">👤</span> <span className="text-xs">Seller: Jupiter Knitting</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">📅</span> <span className="text-xs">Created: {currentTime}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">📍</span> <span className="text-xs">LEI: {mockLeiSeller.substring(0, 12)}...</span></div>
-              </>
-            )}
+            <div className="flex items-center gap-2"><span className="text-sm">📋</span> <span className="text-xs">ID: {mockInvoiceId}</span></div>
+            <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Amount: {mockAmount}</span></div>
           </div>
         )
       
@@ -206,18 +193,12 @@ export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: I
         return (
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />}
+              <span className="text-sm">✅</span>
               <span className="font-semibold text-sm">Status: {statusText}</span>
             </div>
-            {step.status !== 'pending' && (
-              <>
-                <div className="flex items-center gap-2"><span className="text-sm">📤</span> <span className="text-xs">Protocol: A2A v2.0</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Amount: {mockAmount}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">🎯</span> <span className="text-xs">To: Tommy Hilfiger Agent</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">📡</span> <span className="text-xs">Endpoint: https://buyer-agent.api</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">🕐</span> <span className="text-xs">Sent: {currentTime}</span></div>
-              </>
-            )}
+            <div className="flex items-center gap-2"><span className="text-sm">📤</span> <span className="text-xs">Protocol: A2A v2.0</span></div>
+            <div className="flex items-center gap-2"><span className="text-sm">🎯</span> <span className="text-xs">To: Tommy Hilfiger Agent</span></div>
+            <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Amount: {mockAmount}</span></div>
           </div>
         )
       
@@ -225,18 +206,11 @@ export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: I
         return (
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />}
+              <span className="text-sm">✅</span>
               <span className="font-semibold text-sm">Status: {statusText}</span>
             </div>
-            {step.status !== 'pending' && (
-              <>
-                <div className="flex items-center gap-2"><ShieldCheck className="w-3 h-3" /> <span className="text-xs">vLEI: {step.status === 'complete' ? 'Verified ✓' : 'Verifying...'}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">👤</span> <span className="text-xs">Seller: Jupiter Knitting</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">📍</span> <span className="text-xs">LEI: {mockLeiSeller}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">🌍</span> <span className="text-xs">Region: Tiruppur, India</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">✅</span> <span className="text-xs">Trust Score: {step.status === 'complete' ? '98/100' : 'Calculating...'}</span></div>
-              </>
-            )}
+            <div className="flex items-center gap-2"><span className="text-sm">🔐</span> <span className="text-xs">vLEI: Verified ✓</span></div>
+            <div className="flex items-center gap-2"><span className="text-sm">👤</span> <span className="text-xs">Seller: Jupiter Knitting</span></div>
           </div>
         )
       
@@ -244,18 +218,13 @@ export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: I
         return (
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-pink-600 border-t-transparent rounded-full animate-spin" />}
+              <span className="text-sm">✅</span>
               <span className="font-semibold text-sm">Status: {statusText}</span>
             </div>
-            {step.status !== 'pending' && (
-              <>
-                <div className="flex items-center gap-2"><FileSearch className="w-3 h-3" /> <span className="text-xs">Invoice ID: {mockInvoiceId}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">📋</span> <span className="text-xs">Format: {step.status === 'complete' ? 'Valid ✓' : 'Checking...'}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Amount Match: {step.status === 'complete' ? 'Confirmed ✓' : 'Verifying...'}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">📝</span> <span className="text-xs">Line Items: {step.status === 'complete' ? '12 items verified' : 'Checking...'}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">🔍</span> <span className="text-xs">Signature: {step.status === 'complete' ? 'Valid ✓' : 'Validating...'}</span></div>
-              </>
-            )}
+            <div className="flex items-center gap-2"><span className="text-sm">📋</span> <span className="text-xs">Invoice ID: {mockInvoiceId}</span></div>
+            <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Amount Match: Confirmed ✓</span></div>
+            <div className="flex items-center gap-2"><span className="text-sm">🔏</span> <span className="text-xs">Signature: Valid ✓</span></div>
+            <div className="flex items-center gap-2"><span className="text-sm">🔗</span> <a href="http://localhost:3001/zkpret/endorsement/purchase/vLEIBSD" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">Link</a></div>
           </div>
         )
       
@@ -263,19 +232,11 @@ export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: I
         return (
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />}
+              <span className="text-sm">✅</span>
               <span className="font-semibold text-sm">Status: {statusText}</span>
             </div>
-            {step.status !== 'pending' && (
-              <>
-                <div className="flex items-center gap-2"><span className="text-sm">⛓️</span> <span className="text-xs">Chain: Algorand TestNet v1.0</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">💳</span> <span className="text-xs">TX: {mockTxId}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">📤</span> <span className="text-xs">From: {mockBuyerWallet}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">📥</span> <span className="text-xs">To: {mockSellerWallet}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Amount: {mockAmount}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">⚡</span> <span className="text-xs">Confirmations: {step.status === 'complete' ? '12/12' : '8/12'}</span></div>
-              </>
-            )}
+            <div className="flex items-center gap-2"><span className="text-sm">💳</span> <span className="text-xs">TX: {mockTxId}</span></div>
+            <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Amount: {mockAmount}</span></div>
           </div>
         )
       
@@ -283,23 +244,11 @@ export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: I
         return (
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />}
+              <span className="text-sm">✅</span>
               <span className="font-semibold text-sm">Status: {statusText}</span>
             </div>
-            {step.status !== 'pending' && (
-              <>
-                <div className="flex items-center gap-2"><span className="text-sm">✅</span> <span className="text-xs">Payment Confirmed</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">💳</span> <span className="text-xs">TX: {mockTxId}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">📋</span> <span className="text-xs">Invoice: {mockInvoiceId}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Settled: {mockAmount}</span></div>
-                <div className="flex items-center gap-2"><span className="text-sm">🕐</span> <span className="text-xs">Completed: {currentTime}</span></div>
-                {step.status === 'complete' && invoiceData.blockExplorerUrl && (
-                  <a href={invoiceData.blockExplorerUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 underline text-xs mt-1">
-                    <span className="text-sm">🔗</span> View on Explorer
-                  </a>
-                )}
-              </>
-            )}
+            <div className="flex items-center gap-2"><span className="text-sm">💰</span> <span className="text-xs">Settled: {mockAmount}</span></div>
+            <div className="flex items-center gap-2"><span className="text-sm">🔗</span> <span className="text-xs">tx link: {invoiceData.blockExplorerUrl ? <a href={invoiceData.blockExplorerUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View</a> : ''}</span></div>
           </div>
         )
       
