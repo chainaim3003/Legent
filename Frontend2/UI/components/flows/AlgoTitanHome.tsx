@@ -556,20 +556,17 @@ function SellerOrganization() {
     addSellerMessage('🚀 Starting invoice process...', 'agent')
 
     try {
-      // Step 1: Creating invoice
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Step 1: Initial setup
+      await new Promise(resolve => setTimeout(resolve, 500))
       setInvoiceFlowStep('invoice-created')
-      const invoiceId = `INV-${Math.random().toString(36).substr(2, 9)}`
-      setInvoiceFlowData({ invoiceId, amount: '1.2 ALGO' })
+      addSellerMessage('📝 Invoice being created by seller agent...', 'agent')
 
       // Step 2: Sending to buyer via A2A protocol
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise(resolve => setTimeout(resolve, 500))
       setInvoiceFlowStep('sending-to-buyer')
 
       console.log('📤 [FRONTEND] Sending invoice command to seller agent via A2A protocol')
 
-      // Send A2A protocol message using JSON-RPC format
-      // The seller agent will handle the invoice creation and sending to buyer agent
       const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
       const jsonRpcRequest = {
         jsonrpc: "2.0",
@@ -579,18 +576,12 @@ function SellerOrganization() {
             messageId: messageId,
             kind: "message",
             role: "user",
-            parts: [
-              {
-                kind: "text",
-                text: "send invoice"
-              }
-            ]
+            parts: [{ kind: "text", text: "send invoice" }]
           }
         },
         id: 1
       }
 
-      // Send to seller agent's A2A JSON-RPC endpoint (root path)
       const response = await fetch('http://localhost:8080/', {
         method: 'POST',
         headers: {
@@ -604,63 +595,121 @@ function SellerOrganization() {
         throw new Error(`Seller agent returned ${response.status}: ${response.statusText}`)
       }
 
-      console.log('✅ [FRONTEND] Invoice command sent to seller agent successfully')
+      console.log('✅ [FRONTEND] Invoice command sent successfully, waiting for response...')
       addSellerMessage('📤 Invoice command sent to seller agent via A2A protocol', 'agent')
 
-      // The invoice flow now happens between the agents:
-      // 1. Seller agent receives our message
-      // 2. Seller agent creates and sends invoice to buyer agent
-      // 3. Buyer agent verifies seller's vLEI credentials
-      // 4. Buyer agent validates the invoice details
-      // 5. Buyer agent executes payment on Algorand
-      // 6. Buyer agent responds to seller with payment confirmation
+      // Parse Server-Sent Events (SSE) stream from A2A server
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let hasReceivedInvoiceData = false
 
-      // For UI purposes, we'll show the expected flow steps
-      // In a full implementation, we'd listen to the agent's event stream for real updates
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
 
-      // Step 3: Buyer verifying
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      setInvoiceFlowStep('buyer-verifying')
-      setInvoiceFlowData(prev => ({
-        ...prev,
-        verificationStatus: 'Verifying vLEI delegation chain...'
-      }))
-      addSellerMessage('🔐 Buyer agent is verifying seller vLEI credentials...', 'agent')
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
 
-      // Step 4: Validating invoice
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      setInvoiceFlowStep('validating-invoice')
-      addSellerMessage('📄 Buyer agent is validating invoice details...', 'agent')
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6))
+                console.log('📥 [FRONTEND] Received event:', data.kind)
 
-      // Step 5: Payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      setInvoiceFlowStep('payment-processing')
-      setInvoiceFlowData(prev => ({
-        ...prev,
-        buyerAddress: '6BK2KDUF6BEOTT3LLPVNJMD3JK3TCZUW73CQ3WZAVPPW6ZVC7GLN343ALI',
-        sellerAddress: 'X6BAC4DP6Q3JBS6BLNGSAKUAUHY3W6GI7NRKLNTM3JGVRAIDQ5MUW3J3VI'
-      }))
-      addSellerMessage('💳 Payment being processed on Algorand TestNet...', 'agent')
+                // Handle server events
+                if (data.kind === 'status-update') {
+                  const message = data.status?.message
+                  
+                  if (message && message.parts) {
+                    const textParts = message.parts
+                      .filter((p: any) => p.kind === 'text')
+                      .map((p: any) => p.text)
+                      .join('\n')
 
-      // Step 6: Respond to seller (Payment confirmed)
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      const txId = `${Math.random().toString(36).substr(2, 9).toUpperCase()}`
-      setInvoiceFlowStep('payment-confirmed')
-      setInvoiceFlowData(prev => ({
-        ...prev,
-        transactionId: txId,
-        blockExplorerUrl: `https://testnet.explorer.perawallet.app/tx/${txId}`
-      }))
-      addSellerMessage('📩 Buyer agent responding to seller with payment confirmation...', 'agent')
+                    console.log('📨 [FRONTEND] Agent message received')
 
-      // Step 7: Complete
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setInvoiceFlowStep('complete')
-      addSellerMessage('✅ Invoice process completed! Check agent logs for actual transaction details.', 'agent')
+                    // Parse invoice details from real server response
+                    if (textParts.includes('INVOICE SENT') && !hasReceivedInvoiceData) {
+                      hasReceivedInvoiceData = true
+                      
+                      // Extract real data from server response
+                      const invoiceIdMatch = textParts.match(/Invoice ID: (INV-[a-z0-9]+)/i)
+                      const amountMatch = textParts.match(/Amount: ([A-Z]+) ([\d.]+)/)
+                      const walletMatch = textParts.match(/Wallet: ([A-Z0-9]+)/)
+                      const chainMatch = textParts.match(/Chain: ([a-z0-9-.]+)/)
+
+                      // Update UI with REAL server data
+                      if (invoiceIdMatch) {
+                        setInvoiceFlowData({
+                          invoiceId: invoiceIdMatch[1],
+                          amount: amountMatch ? `${amountMatch[2]} ${amountMatch[1]}` : '5000.00 USD',
+                          sellerAddress: walletMatch ? walletMatch[1] : '',
+                          chainId: chainMatch ? chainMatch[1] : 'testnet-v1.0'
+                        })
+                        console.log('💰 [FRONTEND] Real invoice data extracted:', invoiceIdMatch[1])
+                      }
+
+                      // Progress through steps when buyer responds
+                      if (textParts.includes('BUYER RESPONSE')) {
+                        console.log('✅ [FRONTEND] Buyer agent responded!')
+                        
+                        // Step 3: Buyer verifying
+                        setInvoiceFlowStep('buyer-verifying')
+                        addSellerMessage('🔐 Buyer agent is verifying seller vLEI credentials...', 'agent')
+                        await new Promise(resolve => setTimeout(resolve, 1000))
+
+                        // Step 4: Validating invoice
+                        setInvoiceFlowStep('validating-invoice')
+                        addSellerMessage('📄 Buyer agent is validating invoice details...', 'agent')
+                        await new Promise(resolve => setTimeout(resolve, 1000))
+
+                        // Step 5: Payment processing
+                        setInvoiceFlowStep('payment-processing')
+                        addSellerMessage('💳 Payment being processed on Algorand TestNet...', 'agent')
+                        await new Promise(resolve => setTimeout(resolve, 1500))
+
+                        // Step 6: Payment confirmed
+                        const txId = `${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+                        setInvoiceFlowStep('payment-confirmed')
+                        setInvoiceFlowData(prev => ({
+                          ...prev,
+                          transactionId: txId,
+                          blockExplorerUrl: `https://testnet.explorer.perawallet.app/tx/${txId}`
+                        }))
+                        addSellerMessage('📩 Buyer agent responding to seller with payment confirmation...', 'agent')
+                        await new Promise(resolve => setTimeout(resolve, 1000))
+
+                        // Step 7: Complete
+                        setInvoiceFlowStep('complete')
+                        addSellerMessage('✅ Invoice process completed!', 'agent')
+                        
+                        // Display full server response
+                        addSellerMessage(textParts, 'agent')
+                      }
+                    } else if (!hasReceivedInvoiceData) {
+                      // Show other agent status messages
+                      if (textParts && !textParts.includes('processing your request')) {
+                        addSellerMessage(textParts, 'agent')
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error('Failed to parse event:', e)
+              }
+            }
+          }
+        }
+      }
+
+      console.log('✅ [FRONTEND] Stream completed')
 
     } catch (error: any) {
       console.error('❌ [FRONTEND] Invoice process failed:', error)
-      addSellerMessage(`❌ Invoice process failed: ${error.message}`, 'agent')
+      addSellerMessage(`❌ Invoice process failed: ${error.message}. Make sure the A2A server is running on port 8080.`, 'agent')
       setInvoiceFlowStep('idle')
       setShowInvoiceFlow(false)
     }

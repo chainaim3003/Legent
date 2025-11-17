@@ -1,6 +1,7 @@
 "use client"
 
-import { Bot, ArrowRight, Check, FileText, Send, Lock, CreditCard, CheckCircle, Sparkles, ShieldCheck, FileSearch, MessageSquare } from "lucide-react"
+import { useState } from "react"
+import { Bot, ArrowRight, Check, FileText, Send, Lock, CreditCard, CheckCircle, Sparkles, ShieldCheck, FileSearch, MessageSquare, Info } from "lucide-react"
 
 interface InvoiceAgenticFlowProps {
   currentStep?: string
@@ -27,6 +28,8 @@ interface FlowStep {
 }
 
 export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: InvoiceAgenticFlowProps) {
+  // State for hover popup
+  const [hoveredStep, setHoveredStep] = useState<string | null>(null)
   
   // Map the invoice flow steps to display status
   const getStepStatus = (stepId: string): 'complete' | 'active' | 'pending' => {
@@ -165,6 +168,117 @@ export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: I
 
   const isFlowComplete = currentStep === 'complete'
 
+  // Get popup content for each step
+  const getPopupContent = (step: FlowStep) => {
+    const currentTime = new Date().toLocaleTimeString()
+    const statusText = step.status === 'complete' ? 'Complete' : step.status === 'active' ? 'In Progress' : 'Pending'
+    
+    switch (step.id) {
+      case 'create-invoice':
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />}
+              <span className="font-semibold">Status: {statusText}</span>
+            </div>
+            {invoiceData.invoiceId && <div className="flex items-center gap-2"><FileText className="w-3 h-3" /> ID: {invoiceData.invoiceId}</div>}
+            {invoiceData.amount && <div className="flex items-center gap-2"><span className="text-lg">💰</span> Amount: {invoiceData.amount}</div>}
+            <div className="flex items-center gap-2"><span className="text-lg">🕐</span> {currentTime}</div>
+          </div>
+        )
+      
+      case 'send-to-buyer':
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />}
+              <span className="font-semibold">Status: {statusText}</span>
+            </div>
+            {invoiceData.amount && <div className="flex items-center gap-2"><span className="text-lg">💰</span> {invoiceData.amount}</div>}
+            <div className="flex items-center gap-2"><span className="text-lg">🎯</span> To: Buyer Agent</div>
+            <div className="flex items-center gap-2"><span className="text-lg">🕐</span> {currentTime}</div>
+          </div>
+        )
+      
+      case 'verify-seller':
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />}
+              <span className="font-semibold">Status: {statusText}</span>
+            </div>
+            <div className="flex items-center gap-2"><ShieldCheck className="w-3 h-3" /> vLEI: {step.status === 'complete' ? 'Verified' : 'Checking...'}</div>
+            <div className="flex items-center gap-2"><span className="text-lg">👤</span> Seller: Jupiter</div>
+            <div className="flex items-center gap-2"><span className="text-lg">🕐</span> {currentTime}</div>
+          </div>
+        )
+      
+      case 'validate-invoice':
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-pink-600 border-t-transparent rounded-full animate-spin" />}
+              <span className="font-semibold">Status: {statusText}</span>
+            </div>
+            <div className="flex items-center gap-2"><FileSearch className="w-3 h-3" /> Details: {step.status === 'complete' ? 'Validated' : 'Checking...'}</div>
+            <div className="flex items-center gap-2"><span className="text-lg">📋</span> Format: Valid</div>
+            <div className="flex items-center gap-2"><span className="text-lg">🕐</span> {currentTime}</div>
+          </div>
+        )
+      
+      case 'payment-processing':
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />}
+              <span className="font-semibold">Status: {statusText}</span>
+            </div>
+            <div className="flex items-center gap-2"><span className="text-lg">⛓️</span> Chain: testnet-v1.0</div>
+            {invoiceData.transactionId && <div className="flex items-center gap-2 text-xs"><span className="text-lg">💳</span> TX: {invoiceData.transactionId}</div>}
+            <div className="flex items-center gap-2"><span className="text-lg">🕐</span> {currentTime}</div>
+          </div>
+        )
+      
+      case 'respond-to-seller':
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              {step.status === 'complete' ? <Check className="w-3 h-3 text-green-600" /> : <div className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />}
+              <span className="font-semibold">Status: {statusText}</span>
+            </div>
+            {invoiceData.transactionId && <div className="flex items-center gap-2"><span className="text-lg">✅</span> Confirmed</div>}
+            {invoiceData.blockExplorerUrl && (
+              <a href={invoiceData.blockExplorerUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 underline text-xs">
+                <span className="text-lg">🔗</span> View Explorer
+              </a>
+            )}
+            <div className="flex items-center gap-2"><span className="text-lg">🕐</span> {currentTime}</div>
+          </div>
+        )
+      
+      default:
+        return null
+    }
+  }
+
+  // Smart popup positioning based on icon location
+  const getPopupPosition = (index: number, total: number) => {
+    const pos = getCircularPosition(index, total, radius)
+    const x = pos.x
+    
+    // Right side icons (x > 50) - popup on LEFT
+    // Left side icons (x < -50) - popup on RIGHT  
+    // Top/Bottom icons - popup on RIGHT by default
+    
+    if (x > 50) {
+      // Right side - show popup on left
+      return 'right-full mr-4'
+    } else {
+      // Left side or center - show popup on right
+      return 'left-full ml-4'
+    }
+  }
+
   // Calculate positions for circular layout
   const getCircularPosition = (index: number, total: number, radius: number) => {
     // Start from top (12 o'clock) and go clockwise
@@ -295,7 +409,11 @@ export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: I
             >
               <div className="flex flex-col items-center w-20">
                 {/* Avatar with step-specific icon */}
-                <div className="mb-2 relative">
+                <div 
+                  className="mb-2 relative cursor-pointer"
+                  onMouseEnter={() => setHoveredStep(step.id)}
+                  onMouseLeave={() => setHoveredStep(null)}
+                >
                   <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${step.avatarGradient} flex items-center justify-center shadow-lg transition-all duration-300 ${
                     step.status === 'active' ? 'animate-bounce scale-110' : 
                     step.status === 'complete' ? 'scale-105' : 'scale-100 opacity-60'
@@ -328,6 +446,18 @@ export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: I
                   {step.status === 'active' && (
                     <div className="absolute -top-2 -right-2 bg-yellow-500 rounded-full p-1.5 shadow-lg">
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+
+                  {/* Information Popup on Hover */}
+                  {hoveredStep === step.id && (
+                    <div className={`absolute left-full ml-4 top-1/2 -translate-y-1/2 z-50 w-56 bg-white rounded-lg shadow-xl border-2 ${step.borderColor} p-3 animate-fade-in`}>
+                      <div className={`text-sm font-bold mb-2 ${step.color} border-b ${step.borderColor} pb-1`}>
+                        {step.processName}
+                      </div>
+                      <div className="text-xs text-gray-700">
+                        {getPopupContent(step)}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -384,11 +514,18 @@ export function InvoiceAgenticFlow({ currentStep = 'idle', invoiceData = {} }: I
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateX(-10px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
         .animate-bounce-once {
           animation: bounce-once 0.6s ease-in-out;
         }
         .animate-spin-slow {
           animation: spin-slow 3s linear infinite;
+        }
+        .animate-fade-in {
+          animation: fade-in 0.2s ease-out;
         }
       `}</style>
     </div>
