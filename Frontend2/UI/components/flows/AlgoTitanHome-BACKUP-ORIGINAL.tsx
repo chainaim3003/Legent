@@ -39,7 +39,6 @@ type InvoiceFlowStep =
   | 'invoice-created'
   | 'sending-to-buyer'
   | 'buyer-verifying'
-  | 'validating-invoice'
   | 'payment-processing'
   | 'payment-confirmed'
   | 'complete'
@@ -53,6 +52,15 @@ interface InvoiceFlowData {
   verificationStatus?: string
   blockExplorerUrl?: string
 }
+
+type SellerAgenticStep =
+  | 'idle'
+  | 'fetching-seller-agent'
+  | 'seller-agent-fetched'
+  | 'fetching-buyer-agent'
+  | 'buyer-agent-fetched'
+  | 'verifying-buyer-agent'
+  | 'buyer-agent-verified'
 
 let messageIdCounter = 0
 const generateUniqueId = () => {
@@ -425,11 +433,24 @@ function SellerOrganization() {
   const [invoiceFlowStep, setInvoiceFlowStep] = useState<InvoiceFlowStep>('idle')
   const [invoiceFlowData, setInvoiceFlowData] = useState<InvoiceFlowData>({})
   const [showInvoiceFlow, setShowInvoiceFlow] = useState(false)
+  const invoiceFlowRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to chat
+  // Auto-scroll to chat only when invoice flow is NOT active
   useEffect(() => {
-    chatEndRefSeller.current?.scrollIntoView({ behavior: "smooth" })
-  }, [sellerChatMessages])
+    if (!showInvoiceFlow) {
+      chatEndRefSeller.current?.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [sellerChatMessages, showInvoiceFlow])
+
+  // Auto-scroll to invoice flow when it becomes visible
+  useEffect(() => {
+    if (showInvoiceFlow && invoiceFlowRef.current) {
+      // Small delay to ensure the component is fully rendered
+      setTimeout(() => {
+        invoiceFlowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }, 100)
+    }
+  }, [showInvoiceFlow])
 
   useEffect(() => {
     if (sellerAgenticStep === 'buyer-agent-fetched' && buyerAgentFromSellerData && sellerAgenticStep !== 'buyer-agent-verified') {
@@ -611,9 +632,8 @@ function SellerOrganization() {
       // 1. Seller agent receives our message
       // 2. Seller agent creates and sends invoice to buyer agent
       // 3. Buyer agent verifies seller's vLEI credentials
-      // 4. Buyer agent validates the invoice details
-      // 5. Buyer agent executes payment on Algorand
-      // 6. Buyer agent responds to seller with payment confirmation
+      // 4. Buyer agent executes payment on Algorand
+      // 5. Buyer agent notifies seller agent of payment
 
       // For UI purposes, we'll show the expected flow steps
       // In a full implementation, we'd listen to the agent's event stream for real updates
@@ -627,12 +647,7 @@ function SellerOrganization() {
       }))
       addSellerMessage('🔐 Buyer agent is verifying seller vLEI credentials...', 'agent')
 
-      // Step 4: Validating invoice
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      setInvoiceFlowStep('validating-invoice')
-      addSellerMessage('📄 Buyer agent is validating invoice details...', 'agent')
-
-      // Step 5: Payment processing
+      // Step 4: Payment processing
       await new Promise(resolve => setTimeout(resolve, 2000))
       setInvoiceFlowStep('payment-processing')
       setInvoiceFlowData(prev => ({
@@ -642,7 +657,7 @@ function SellerOrganization() {
       }))
       addSellerMessage('💳 Payment being processed on Algorand TestNet...', 'agent')
 
-      // Step 6: Respond to seller (Payment confirmed)
+      // Step 5: Payment confirmed
       await new Promise(resolve => setTimeout(resolve, 2000))
       const txId = `${Math.random().toString(36).substr(2, 9).toUpperCase()}`
       setInvoiceFlowStep('payment-confirmed')
@@ -651,9 +666,8 @@ function SellerOrganization() {
         transactionId: txId,
         blockExplorerUrl: `https://testnet.explorer.perawallet.app/tx/${txId}`
       }))
-      addSellerMessage('📩 Buyer agent responding to seller with payment confirmation...', 'agent')
 
-      // Step 7: Complete
+      // Step 6: Complete
       await new Promise(resolve => setTimeout(resolve, 1000))
       setInvoiceFlowStep('complete')
       addSellerMessage('✅ Invoice process completed! Check agent logs for actual transaction details.', 'agent')
@@ -694,120 +708,99 @@ function SellerOrganization() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-slate-100 p-4 lg:p-8">
-      {/* Page Title */}
-      <div className="text-center mb-6">
-        <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
-          Exporter Organization
-        </h1>
-        <p className="text-slate-600 text-sm lg:text-base font-medium">
-          vLEI Verified AI Agent for Seller
-        </p>
-      </div>
-
-      {/* TWO COLUMN LAYOUT */}
-      <div className="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* LEFT SIDE: Seller Organization + Chat Interface Container */}
-        <div className="flex flex-col">
-          <div className="border border-slate-300 rounded-xl shadow-lg overflow-hidden bg-white flex flex-col h-full">
-            
-            {/* Organization Header */}
-            <div className="bg-white p-6 lg:p-8 border-b border-slate-300">
-              <div className="flex items-start gap-3 lg:gap-4">
-                <div className="bg-green-100 p-2.5 lg:p-3 rounded-lg flex-shrink-0">
-                  <Building className="w-5 h-5 lg:w-6 lg:h-6 text-green-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-base lg:text-lg font-semibold text-slate-900 mb-2 lg:mb-3">
-                    Seller Organization
-                  </h2>
-                  <p className="text-sm lg:text-base text-slate-700 font-medium mb-2 break-words">
-                    {LEI_DATA.jupiter.name}
-                  </p>
-                  <div className="space-y-2 lg:space-y-3 text-xs lg:text-sm text-slate-600">
-                    <p>
-                      <strong className="font-semibold">LEI:</strong>{" "}
-                      <span className="break-all">{LEI_DATA.jupiter.lei}</span>
-                    </p>
-                    <p>
-                      <strong className="font-semibold">Address:</strong>{" "}
-                      <span className="break-words">{LEI_DATA.jupiter.address}</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Chat Area */}
-            <div className="bg-slate-50 border-t border-slate-300 flex-1 flex flex-col">
-              <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-[300px] max-h-[500px]">
-                {sellerChatMessages.length === 0 && (
-                  <div className="text-center text-sm text-slate-500 py-8">
-                    <p>Type a command to start:</p>
-                    <p className="text-xs mt-1">• fetch my agent</p>
-                    <p className="text-xs">• fetch buyer agent</p>
-                    <p className="text-xs">• send invoice</p>
-                  </div>
-                )}
-                {sellerChatMessages.map((msg) => (
-                  <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${
-                      msg.type === 'user'
-                        ? 'bg-green-600 text-white'
-                        : 'bg-white border border-slate-200 text-slate-800'
-                    }`}>
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-                <div ref={chatEndRefSeller} />
-              </div>
-
-              {/* Input Area */}
-              <div className="p-4 border-t border-slate-200">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={sellerInputMessage}
-                    onChange={(e) => setSellerInputMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSellerSendMessage()}
-                    placeholder="Type a command..."
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                  <button
-                    onClick={handleSellerSendMessage}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+      <div className="max-w-[1400px] mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
+            Exporter Organization
+          </h1>
+          <p className="text-slate-600 text-sm lg:text-base font-medium">
+            vLEI Verified AI Agent for Seller
+          </p>
         </div>
 
-        {/* RIGHT SIDE: Invoice Agentic Flow */}
-        <div className="flex flex-col">
-          {showInvoiceFlow ? (
-            <div className="border border-purple-300 rounded-xl shadow-lg overflow-hidden bg-white p-6">
+        <div className="border border-slate-300 rounded-xl shadow-lg overflow-hidden bg-white flex flex-col max-w-4xl mx-auto">
+          {/* Organization Header */}
+          <div className="bg-white p-6 lg:p-8 border-b border-slate-300">
+            <div className="flex items-start gap-3 lg:gap-4">
+              <div className="bg-green-100 p-2.5 lg:p-3 rounded-lg flex-shrink-0">
+                <Building className="w-5 h-5 lg:w-6 lg:h-6 text-green-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base lg:text-lg font-semibold text-slate-900 mb-2 lg:mb-3">
+                  Seller Organization
+                </h2>
+                <p className="text-sm lg:text-base text-slate-700 font-medium mb-2 break-words">
+                  {LEI_DATA.jupiter.name}
+                </p>
+                <div className="space-y-2 lg:space-y-3 text-xs lg:text-sm text-slate-600">
+                  <p>
+                    <strong className="font-semibold">LEI:</strong>{" "}
+                    <span className="break-all">{LEI_DATA.jupiter.lei}</span>
+                  </p>
+                  <p>
+                    <strong className="font-semibold">Address:</strong>{" "}
+                    <span className="break-words">{LEI_DATA.jupiter.address}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+            </div>
+
+            {/* Invoice Flow Display - Horizontal Agent-to-Agent Flow */}
+            {showInvoiceFlow && (
+            <div ref={invoiceFlowRef} className="p-6 lg:p-8 border-b border-slate-300">
               <InvoiceAgenticFlow 
                 currentStep={invoiceFlowStep}
                 invoiceData={invoiceFlowData}
               />
             </div>
-          ) : (
-            <div className="border border-slate-200 rounded-xl shadow-lg overflow-hidden bg-gradient-to-br from-purple-50 to-indigo-50 p-8 flex items-center justify-center min-h-[400px]">
-              <div className="text-center">
-                <div className="bg-purple-100 p-6 rounded-full inline-block mb-4">
-                  <Bot className="w-12 h-12 text-purple-600" />
+          )}
+
+
+          {/* Chat Area */}
+          <div className="bg-slate-50 border-t border-slate-300">
+            <div className="h-48 overflow-y-auto p-4 space-y-2">
+              {sellerChatMessages.length === 0 && (
+                <div className="text-center text-sm text-slate-500 py-8">
+                  <p>Type a command to start:</p>
+                  <p className="text-xs mt-1">• fetch my agent</p>
+                  <p className="text-xs">• fetch buyer agent</p>
+                  <p className="text-xs">• send invoice</p>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">Invoice Agentic Flow</h3>
-                <p className="text-gray-600 text-sm">
-                  Trigger the chat by sending an invoice command to view the agent-to-agent flow here
-                </p>
+              )}
+              {sellerChatMessages.map((msg) => (
+                <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${msg.type === 'user'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-white border border-slate-200 text-slate-800'
+                    }`}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              <div ref={chatEndRefSeller} />
+            </div>
+
+            {/* Input Area */}
+            <div className="p-4 border-t border-slate-200">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={sellerInputMessage}
+                  onChange={(e) => setSellerInputMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSellerSendMessage()}
+                  placeholder="Type a command..."
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <button
+                  onClick={handleSellerSendMessage}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

@@ -1,10 +1,10 @@
 /**
- * Enhanced Exporter Dashboard Component - V3 Integration
+ * Enhanced Exporter Dashboard Component - V3 Integration with Split-Screen Layout
  * 
- * Shows RWAs owned by the exporter with advanced marketplace and fractional investment features
- * Integrates with V3 contracts and wallet role switching
+ * LEFT PANEL: Seller Organization Selector + Chat Interface
+ * RIGHT PANEL: Invoice Agentic Flow (triggered from chat)
  */
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useWallet } from '../hooks/useWalletWrapper'
 import { useApplicationState, useRoleSwitcher } from '../contexts/ApplicationContext'
 import { ADDRESSES, getRoleByAddress, formatAddress } from '../services/roleMappingService'
@@ -16,6 +16,7 @@ import { TradeBoxStorageInline } from './TradeBoxStorageInline'
 import { boxStorageService } from '../services/boxStorage'
 import { escrowV4BoxReader } from '../services/escrowV4BoxReader'
 import { escrowV5Service } from '../services/escrowV5Service'
+import { InvoiceAgenticFlow } from '../../flows/invoice/InvoiceAgenticFlow'
 
 interface RWAAsset {
   id: string
@@ -67,8 +68,38 @@ export function EnhancedExporterDashboard() {
   const [uploadingShippingInstructions, setUploadingShippingInstructions] = useState<number | null>(null) // Track shipping instructions upload
   const [viewingBoxStorage, setViewingBoxStorage] = useState<number | null>(null) // Track which trade's box storage is being viewed
 
+  // NEW: Split-screen layout states
+  const [selectedOrganization, setSelectedOrganization] = useState<string>('Premium Exporter Ltd')
+  const [chatMessages, setChatMessages] = useState<Array<{id: string, role: 'user' | 'assistant', content: string, timestamp: Date}>>([
+    {
+      id: '1',
+      role: 'assistant',
+      content: 'Hello! I\'m your AI assistant. Type "send invoice" to start the invoice processing flow.',
+      timestamp: new Date()
+    }
+  ])
+  const [chatInput, setChatInput] = useState('')
+  const [showInvoiceFlow, setShowInvoiceFlow] = useState(false)
+  const [invoiceFlowStep, setInvoiceFlowStep] = useState<string>('idle')
+  const [invoiceFlowData, setInvoiceFlowData] = useState<any>({})
+  const [isProcessing, setIsProcessing] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
+  // Available seller organizations
+  const sellerOrganizations = [
+    'Premium Exporter Ltd',
+    'Global Trade Co.',
+    'International Exports Inc.',
+    'Maritime Commerce LLC'
+  ]
+
   const exporterAddress = ADDRESSES.EXPORTER
   const isConnectedAsExporter = activeAddress === exporterAddress
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
 
   useEffect(() => {
     console.log('🚀 EnhancedExporterDashboard useEffect triggered with activeAddress:', activeAddress)
@@ -76,6 +107,80 @@ export function EnhancedExporterDashboard() {
     console.log('🚀 isConnectedAsExporter:', isConnectedAsExporter)
     loadExporterRWAs()
   }, [activeAddress])
+
+  // Handle chat message send
+  const handleSendMessage = async () => {
+    if (!chatInput.trim()) return
+
+    const userMessage = {
+      id: Date.now().toString(),
+      role: 'user' as const,
+      content: chatInput,
+      timestamp: new Date()
+    }
+
+    setChatMessages(prev => [...prev, userMessage])
+    setChatInput('')
+    setIsProcessing(true)
+
+    // Check if user wants to send invoice
+    if (chatInput.toLowerCase().includes('send invoice')) {
+      setShowInvoiceFlow(true)
+      
+      // Simulate invoice flow steps
+      const assistantMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant' as const,
+        content: 'Starting invoice generation process...',
+        timestamp: new Date()
+      }
+      setChatMessages(prev => [...prev, assistantMessage])
+      
+      // Simulate invoice flow progression
+      setTimeout(() => setInvoiceFlowStep('creating-invoice'), 500)
+      setTimeout(() => {
+        setInvoiceFlowData({ invoiceId: 'INV-2024-001' })
+        setInvoiceFlowStep('invoice-created')
+      }, 1500)
+      setTimeout(() => setInvoiceFlowStep('sending-to-buyer'), 2500)
+      setTimeout(() => {
+        setInvoiceFlowData(prev => ({ ...prev, amount: '$50,000' }))
+        setInvoiceFlowStep('buyer-verifying')
+      }, 3500)
+      setTimeout(() => setInvoiceFlowStep('payment-processing'), 4500)
+      setTimeout(() => {
+        setInvoiceFlowData(prev => ({ 
+          ...prev, 
+          transactionId: 'TXN-ABC123',
+          blockExplorerUrl: 'https://testnet.algoexplorer.io/tx/TXN-ABC123'
+        }))
+        setInvoiceFlowStep('payment-confirmed')
+      }, 5500)
+      setTimeout(() => {
+        setInvoiceFlowStep('complete')
+        const finalMessage = {
+          id: (Date.now() + 2).toString(),
+          role: 'assistant' as const,
+          content: '✅ Invoice sent successfully! Payment confirmed on blockchain.',
+          timestamp: new Date()
+        }
+        setChatMessages(prev => [...prev, finalMessage])
+        setIsProcessing(false)
+      }, 6500)
+    } else {
+      // Regular chat response
+      setTimeout(() => {
+        const assistantMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant' as const,
+          content: 'I can help you with invoice processing. Type "send invoice" to start the process.',
+          timestamp: new Date()
+        }
+        setChatMessages(prev => [...prev, assistantMessage])
+        setIsProcessing(false)
+      }, 1000)
+    }
+  }
 
   const loadExporterRWAs = async () => {
     console.log('🎯 loadExporterRWAs function called - activeAddress:', activeAddress)
@@ -784,7 +889,143 @@ export function EnhancedExporterDashboard() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="h-screen flex flex-col bg-gray-50">
+      {/* Top Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">📦 Exporter Dashboard</h1>
+            <p className="text-sm text-gray-600 mt-1">Manage invoices and RWA assets</p>
+          </div>
+          <WalletRoleStatusIndicator />
+        </div>
+      </div>
+
+      {/* Split Screen Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* LEFT PANEL - Organization Selector + Chat */}
+        <div className="w-1/2 flex flex-col bg-white border-r border-gray-200">
+          {/* Organization Selector */}
+          <div className="p-4 border-b border-gray-200">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              🏛️ Seller Organization
+            </label>
+            <select
+              value={selectedOrganization}
+              onChange={(e) => setSelectedOrganization(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {sellerOrganizations.map(org => (
+                <option key={org} value={org}>{org}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Chat Interface */}
+          <div className="flex-1 flex flex-col">
+            <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                💬 AI Assistant
+              </h2>
+              <p className="text-xs text-gray-600 mt-1">Type "send invoice" to start the invoice flow</p>
+            </div>
+
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {chatMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                      message.role === 'user'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-900'
+                    }`}
+                  >
+                    <p className="text-sm">{message.content}</p>
+                    <p className={`text-xs mt-1 ${
+                      message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                    }`}>
+                      {message.timestamp.toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {isProcessing && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-100 rounded-lg px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      <p className="text-sm text-gray-600">Processing...</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Chat Input */}
+            <div className="p-4 border-t border-gray-200 bg-white">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="Type your message..."
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isProcessing}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={isProcessing || !chatInput.trim()}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  <span>➤</span>
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT PANEL - Invoice Agentic Flow */}
+        <div className="w-1/2 flex flex-col bg-gray-50 overflow-y-auto">
+          {showInvoiceFlow ? (
+            <div className="p-6">
+              <InvoiceAgenticFlow
+                currentStep={invoiceFlowStep}
+                invoiceData={invoiceFlowData}
+              />
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center">
+                <div className="text-gray-300 text-6xl mb-4">📄</div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No Active Process</h3>
+                <p className="text-gray-600 max-w-md">
+                  Type "send invoice" in the chat to trigger the invoice agentic flow.
+                  The process will appear here in real-time.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/*
+=============================================================================
+OLD CONTENT BELOW - COMMENTED OUT FOR REFERENCE
+This includes the original tab-based interface with marketplace and RWA management
+=============================================================================
+
+OLD RETURN STRUCTURE:
+<div className="max-w-7xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
@@ -933,6 +1174,11 @@ export function EnhancedExporterDashboard() {
       {/* Marketplace Tab Content */}
       {activeTab === 'marketplace' && (
         <>
+          {/* Invoice Agentic Flow */}
+          <div className="mb-8">
+            <InvoiceAgenticFlow />
+          </div>
+
           {/* Escrowed Trades - Ready for Execution */}
           {escrowedTrades.length > 0 ? (
             <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
@@ -1279,6 +1525,14 @@ export function EnhancedExporterDashboard() {
     </div>
   )
 }
+*/
+
+/*
+=============================================================================
+HELPER COMPONENTS BELOW - STILL ACTIVE
+These are reusable components used by the dashboard
+=============================================================================
+*/
 
 // RWA Asset Card Component
 const RWAAssetCard: React.FC<{
