@@ -556,6 +556,75 @@ function SellerOrganization() {
     addSellerMessage('🚀 Starting invoice process...', 'agent')
 
     try {
+      // Step 1: Creating Invoice
+      await new Promise(resolve => setTimeout(resolve, 800))
+      const mockInvoiceId = `INV-${Date.now().toString(36).toUpperCase()}`
+      const mockAmount = '5,000.00 USD'
+      
+      setInvoiceFlowData({
+        invoiceId: mockInvoiceId,
+        amount: mockAmount,
+        sellerAddress: 'ALGW-SELL-8X9Y2K3M7P...',
+        buyerAddress: 'ALGW-BUY-3M7N5P2K8X...'
+      })
+      setInvoiceFlowStep('invoice-created')
+      addSellerMessage(`📝 Invoice created: ${mockInvoiceId} for ${mockAmount}`, 'agent')
+
+      // Step 2: Sending to Buyer Agent
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setInvoiceFlowStep('sending-to-buyer')
+      addSellerMessage('📤 Sending invoice to buyer agent via A2A protocol...', 'agent')
+
+      // Step 3: Buyer Verifying Seller
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      setInvoiceFlowStep('buyer-verifying')
+      addSellerMessage('🔐 Buyer agent verifying seller vLEI credentials...', 'agent')
+      
+      // Step 4: Validating Invoice
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      setInvoiceFlowStep('validating-invoice')
+      addSellerMessage('📄 Buyer agent validating invoice details...', 'agent')
+      
+      // Step 5: Payment Processing
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      setInvoiceFlowStep('payment-processing')
+      const mockTxId = `TX${Date.now().toString(36).toUpperCase()}`
+      setInvoiceFlowData(prev => ({
+        ...prev,
+        transactionId: mockTxId,
+        verificationStatus: 'Processing'
+      }))
+      addSellerMessage('💳 Payment being processed on Algorand TestNet...', 'agent')
+      
+      // Step 6: Payment Confirmed
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      setInvoiceFlowStep('payment-confirmed')
+      setInvoiceFlowData(prev => ({
+        ...prev,
+        verificationStatus: 'Confirmed',
+        blockExplorerUrl: `https://testnet.explorer.perawallet.app/tx/${mockTxId}`
+      }))
+      addSellerMessage(`✅ Payment confirmed! TX: ${mockTxId}`, 'agent')
+      
+      // Step 7: Complete
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setInvoiceFlowStep('complete')
+      addSellerMessage('🎉 Invoice process completed successfully!', 'agent')
+
+    } catch (error: any) {
+      console.error('❌ [FRONTEND] Invoice process failed:', error)
+      addSellerMessage(`❌ Invoice process failed: ${error.message}`, 'agent')
+      setInvoiceFlowStep('idle')
+      setShowInvoiceFlow(false)
+    }
+  }
+
+  const sendInvoiceOLD = async () => {
+    setShowInvoiceFlow(true)
+    setInvoiceFlowStep('creating-invoice')
+    addSellerMessage('🚀 Starting invoice process...', 'agent')
+
+    try {
       // Step 1: Initial setup
       await new Promise(resolve => setTimeout(resolve, 500))
       setInvoiceFlowStep('invoice-created')
